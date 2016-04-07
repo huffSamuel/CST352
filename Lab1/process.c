@@ -50,6 +50,7 @@ int main(int argc, char *argv[])
   }
   else
   {
+    int wpid[3];
     int count;
     char * argv2[argc - 3];
     int status;
@@ -89,6 +90,11 @@ int main(int argc, char *argv[])
       else
         exit(10);
     }
+    else 
+    {
+      close(P1[WRITE]);
+      wpid[0] = pid;
+    }
     /*********END**************************************************************/
 
     if(pipe(P2) == -1)
@@ -102,7 +108,6 @@ int main(int argc, char *argv[])
     pid = fork();
     if(pid == 0)
     {
-      close(P1[WRITE]);
       if(dup2(P1[READ], 0) == -1)
       {
         if(fprintf(stderr, "PROCESS ERROR: Failed to dup to pipe\n") > 0)
@@ -126,6 +131,11 @@ int main(int argc, char *argv[])
         return 4;
       else exit(10);
     }
+    else
+    {
+      close(P2[WRITE]);
+      wpid[1] = pid;
+    }
     /******************END********************************************************/
 
 
@@ -133,8 +143,6 @@ int main(int argc, char *argv[])
     pid = fork();
     if(pid == 0)
     {
-      close(P1[WRITE]);
-      close(P1[READ]);
       if(dup2(P2[READ], 0) == -1)
       {
         if(fprintf(stderr, "PROCESS ERROR: Failed to dup to pipe") > 0)
@@ -152,11 +160,14 @@ int main(int argc, char *argv[])
         return 4;
       else exit(10); // CHANGE
     }
+    else wpid[2] = pid;
     /****************END*********************************************************/
 
+    close(P2[READ]);
+    close(P1[READ]);
 
     wait(NULL);
-    close(P2[0]);
-    close(P2[1]);
+    wait(NULL);
+    wait(NULL);
   }
 }

@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
       charPtr = strchr(inputString, delim);
       if(charPtr != NULL)
       {
-        if(printf("%s\r", charPtr) < 0)
+        if(printf("%s\n", charPtr) < 0)
         {
           if(fprintf(stderr, "ERROR: String output failed\n") > 0)
             return 4;
