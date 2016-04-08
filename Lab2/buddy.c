@@ -26,40 +26,38 @@
 *
 ****************************************************************/
 
-
-
 int main(int argc, char * argv[])
 {
   void * mem_base = malloc(2048);
   bucket_t free_list[8];
-  my_mem_init(free_list);
+  bucket_t busy_list[8];
+  my_mem_init(free_list, busy_list, mem_base);
   printf("Allocation done");
 }
 
-void my_mem_init(bucket_t * free_list)
+void my_mem_init(bucket_t * free_list, bucket_t * busy_list, void * mem_base)
 {
   // Setup for initialization
   int i;
-  int count = 128;
-
-  //busy_list = malloc(8 * sizeof(mem_bucket));
 
   // Allocate and initialize contents of the tables
   for(i = 0; i < 8; i++)
   {
-    //busy_list[i].size = count;
-    //busy_list[i].numUsed = 0;
-    //busy_list[i].addr = malloc(count * sizeof(int));
+    busy_list[i].m_size = 1 << (i + 4);
     free_list[i].m_size = 1 << (i + 4);
+    busy_list[i].m_numUsed = 0;
     free_list[i].m_numUsed = 0;
-    free_list[i].m_offset = malloc(count * sizeof(int));
-    count = count >> 1;
+    busy_list[i].m_offset = malloc((1 << (8-i)) * sizeof(int));
+    free_list[i].m_offset = malloc((1 << (8-i)) * sizeof(int));
   }
+
+  Add(free_list, 2048, 0);
+
 }
 
 int findBuddy(int addr, short size)
 {
-  return (addr ^ 1 << (computerOrder(size) + 4));
+  return (addr ^ 1 << (computeOrder(size) + 4));
 }
 
 void my_free(int addr)
@@ -112,7 +110,7 @@ int roundUp(int size)
   }
 }
 
-int computerOrder(int size)
+int computeOrder(int size)
 {
   int currentSize = 16;
   int order = 0;
@@ -123,4 +121,12 @@ int computerOrder(int size)
   }
 
   return order;
+}
+
+void Add(bucket_t * bucket, int size, int addr)
+{
+  int order = computeOrder(size);
+  int used = bucket[order].m_numUsed;
+  bucket[order].m_offset[used] = addr;
+  bucket[order].m_numUsed = used + 1;
 }
