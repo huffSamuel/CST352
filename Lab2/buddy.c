@@ -25,17 +25,23 @@
 * Output:
 *
 ****************************************************************/
-
+int * mem_base;
+int allocated;
 int main(int argc, char * argv[])
 {
-  void * mem_base = malloc(2048);
+  allocated = 0;
+  mem_base = malloc(2048);
+
   bucket_t free_list[8];
   bucket_t busy_list[8];
-  my_mem_init(free_list, busy_list, mem_base);
-  printf("Allocation done");
+  my_mem_init(free_list, busy_list);
+  my_print_mem(free_list, busy_list);
+  my_mem_cleanup(free_list, busy_list); 
+
+  printf("Table size: %d\n", allocated);
 }
 
-void my_mem_init(bucket_t * free_list, bucket_t * busy_list, void * mem_base)
+void my_mem_init(bucket_t * free_list, bucket_t * busy_list)
 {
   // Setup for initialization
   int i;
@@ -47,12 +53,48 @@ void my_mem_init(bucket_t * free_list, bucket_t * busy_list, void * mem_base)
     free_list[i].m_size = 1 << (i + 4);
     busy_list[i].m_numUsed = 0;
     free_list[i].m_numUsed = 0;
-    busy_list[i].m_offset = malloc((1 << (8-i)) * sizeof(int));
-    free_list[i].m_offset = malloc((1 << (8-i)) * sizeof(int));
+    busy_list[i].m_offset = malloc((1 << (8-i)) * sizeof(char));
+
+    allocated += (int)2*((1 << (8-i)) * sizeof(char));
+    free_list[i].m_offset = malloc((1 << (8-i)) * sizeof(char));
+    printf("Allocated %d bytes\n", (int)((1 << (8-i)) * sizeof(char)));
   }
 
-  Add(free_list, 2048, 0);
+  //Add(free_list, 2048, 0);
+  Add(free_list, 1024, 0);
+  Add(free_list, 1024, 1024);
+}
 
+void my_mem_cleanup(bucket_t * free_list, bucket_t * busy_list)
+{
+  int i;
+  for(i = 0; i < 8; i++)
+  {
+    free(busy_list[i].m_offset);
+    free(free_list[i].m_offset);
+  }
+
+  free(mem_base);
+}
+
+void my_print_mem(bucket_t * free_list, bucket_t * busy_list)
+{
+  int i;
+  int j;
+  for(i=0; i < 8; i++)
+  {
+    printf("free %#06x = ", free_list[i].m_size);
+    if(free_list[i].m_numUsed == 0)
+      printf("0x0000");
+    else
+    {
+      for(j = 0; j < free_list[i].m_numUsed; j++)
+      {
+        printf("0x%04x ", free_list[i].m_offset[j] << 4);
+      }
+    }
+    printf("\n");
+  }
 }
 
 int findBuddy(int addr, short size)
@@ -62,6 +104,7 @@ int findBuddy(int addr, short size)
 
 void my_free(int addr)
 {
+  int offset = addr - *mem_base;
   // Move the memory thing to the free table
   // Coalesce (recursive)
 }
@@ -127,6 +170,6 @@ void Add(bucket_t * bucket, int size, int addr)
 {
   int order = computeOrder(size);
   int used = bucket[order].m_numUsed;
-  bucket[order].m_offset[used] = addr;
+  bucket[order].m_offset[used] = addr >> 4;
   bucket[order].m_numUsed = used + 1;
 }
