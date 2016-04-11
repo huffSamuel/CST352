@@ -13,6 +13,7 @@
 #include "buddy.h"
 #define DEBUG_MODE 1
 #define MEM_SIZE 2048
+#define MIN_BLOCK 16
 
 /****************************************************************
 *
@@ -25,17 +26,19 @@
 * Output:
 *
 ****************************************************************/
-int * mem_base;
+void * mem_base;
 bucket_t * free_list;
 bucket_t * busy_list;
 int allocated;
 int main(int argc, char * argv[])
 {
   allocated = 0;
+  intptr_t offset = 0;
 
   my_mem_init();
   my_print_mem(free_list, busy_list);
-  //allocate(2048);
+  allocate(2048);
+  offset = split(1024);
   my_mem_cleanup(free_list, busy_list); 
   
 
@@ -51,7 +54,8 @@ int main(int argc, char * argv[])
 * Precondition: 
 *      free_list is a global bucket_t * pointer
 *      busy_list is a global bucket_t * pointer
-*      mem_base is a global int * pointer. This is the memory we will be managing.
+*      mem_base is a global int * pointer. This is the memory we will be 
+*        managing.
 *
 * Postcondition: 
 *      mem_base is allocated. 
@@ -65,7 +69,7 @@ void my_mem_init()
   int i;
 
   // Allocate our memory chunk
-  mem_base = malloc(2048);
+  mem_base = malloc(MEM_SIZE);
 
   // Allocate the free and busy lists
   free_list = malloc(8 * sizeof(bucket_t));
@@ -76,8 +80,8 @@ void my_mem_init()
   {
     busy_list[i].m_size = 1 << (i + 4);
     free_list[i].m_size = 1 << (i + 4);
-    busy_list[i].m_numUsed = 0;
-    free_list[i].m_numUsed = 0;
+    busy_list[i].m_count = 0;
+    free_list[i].m_count = 0;
     busy_list[i].m_offset = malloc((1 << (8-i)) * sizeof(char));
 
     allocated += (int)2*((1 << (8-i)) * sizeof(char));
@@ -86,7 +90,7 @@ void my_mem_init()
   }
 
   // Add the initial 2048 block to the free_list
-  Add(free_list, 2048, 0);
+  Add(free_list, MEM_SIZE, 0);
 }
 
 /********************************************************************** 
@@ -136,15 +140,16 @@ void my_print_mem()
 {
   int i;
   int j;
+
   // Print the contents of free memory
   for(i=0; i < 8; i++)
   {
     printf("free %#06x = ", free_list[i].m_size);
-    if(free_list[i].m_numUsed == 0)
+    if(free_list[i].m_count == 0)
       printf("0x0000");
     else
     {
-      for(j = 0; j < free_list[i].m_numUsed; j++)
+      for(j = 0; j < free_list[i].m_count; j++)
       {
         printf("0x%04x ", free_list[i].m_offset[j] << 4);
       }
@@ -172,7 +177,7 @@ void my_print_mem()
 ************************************************************************/
 int findBuddy(int addr, short size)
 {
-  return ((addr >> 4) ^ 1 << (computeOrder(size) + 4));
+  return ((addr << 4) ^ 1 << (computeOrder(size) + 4));
 }
 
 /********************************************************************** 
@@ -186,9 +191,9 @@ int findBuddy(int addr, short size)
 *      The block in mem_base at address <addr> is freed.
 *
 ************************************************************************/
-void my_free(int addr)
+void my_free(void * ptr)
 {
-  int offset = addr - *mem_base;
+  int offset = ptr - mem_base;
   // Move the memory thing to the free table
   // Coalesce (recursive)
 }
@@ -205,36 +210,68 @@ void my_free(int addr)
 *      actual address in memory is returned to the user.
 *
 ************************************************************************/
-void my_malloc(int size)
+void * my_malloc(int size)
 {
-  size = roundUp(size);
-  allocate(size);
-  // Start at max order
-  // Check free_list[order] to see if one is free
-  // if(numUsed != 2048/size)
-  //   Return the address
-  // else
-  //   my_malloc(size * 2);
+  intptr_t addr;
+  if(size < 16)
+    size = 16;
+  else
+    size = roundUp(size);
+
+  // 
+  
+  return (void *)addr;
 }
 
-void allocate(int size)
+// TODO: Bad Logic. 
+intptr_t allocate(int size)
 {
-  //int order = computeOrder(size);
-  //int numUsed = free_list[order].m_numUsed;
-  //if(numUsed > (128 >> order))
+  int order = computeOrder(size);
+  int numUsed = free_list[order].m_count;
+
+  //if(size > MEM_SIZE)
+  //  return -1;
+
+  //if(numUsed == 0)
+  //  split(size);
+
+
+  // Free slots, allocate here
+  //else if(numUsed >= (128 >> order))
   //{
-  //  int addr = (free_list[order].m_offset[numUsed - 1] << 4) + (int)mem_base;
-  //  free_list[order].m_numUsed = numUsed - 1;
-    // Move that to busy_list
+  //  intptr_t addr = (free_list[order].m_offset[numUsed - 1] << 4) + (intptr_t)mem_base; 
+  //  free_list[order].m_count = numUsed - 1;
+    // Move that to busy_list 
+  //  return addr;
   //}
-    // No free slots, split a higer order
-  // check if free_list[computeOrder] has a free slot
-  // if(numUsed != (2048/size))
-  //   return the address of the block
-  //   move the block to busy_table
-  // else
-  //   allocate(size * 2);
+  //else
+  //{
+  //  intptr_t addr = allocate(size << 1);
+  //  return addr;
+  //}  
 }
+
+intptr_t split(int size)
+{
+  int order = computeOrder(size);
+  int count = free_list[order].m_count;
+  int offset;
+
+  if(size > MEM_SIZE) return -1;
+  else if(count == 0) // Split one of the size up
+  {
+    split(size << 1);
+    count = free_list[order].m_count;
+  }
+
+  offset = (free_list[order].m_offset[count - 1]) << 4;
+
+  free_list[order].m_count = count - 1;
+  Add(free_list, size>>1, offset);
+  Add(free_list, size>>1, offset + (size >> 1));
+  return offset;
+}
+
 
 /********************************************************************** 
 * Purpose: Rounds a size up to its nearest power of 2
@@ -251,9 +288,9 @@ void allocate(int size)
 int roundUp(int size)
 {
   int i = 0;
-  if(size < 16)
-    return 16;
-  else if(size < 2049)  // Bit twiddle hack for nearest power of 2
+  if(size < MIN_BLOCK)
+    return MIN_BLOCK;
+  else if(size <= MEM_SIZE)  // Bit twiddle hack for nearest power of 2
   {
     size--;
     size |= size >> 1;
@@ -285,7 +322,7 @@ int roundUp(int size)
 ************************************************************************/
 int computeOrder(int size)
 {
-  int currentSize = 16;
+  int currentSize = MIN_BLOCK;
   int order = 0;
   while(currentSize < size)
   {
@@ -312,7 +349,7 @@ int computeOrder(int size)
 void Add(bucket_t * bucket, int size, int addr)
 {
   int order = computeOrder(size);
-  int used = bucket[order].m_numUsed;
+  int used = bucket[order].m_count;
   bucket[order].m_offset[used] = addr >> 4;
-  bucket[order].m_numUsed = used + 1;
+  bucket[order].m_count = used + 1;
 }
