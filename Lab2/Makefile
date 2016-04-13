@@ -10,10 +10,11 @@
 CC=gcc
 COPTS=-g -o
 
-all: buddy
+all: main
 
 clean: 
-	rm -f buddy *~
+	rm -f main
+	rm -f *.o
 
-buddy: buddy.c
-	$(CC) $(COPTS) buddy buddy.c
+main:
+	$(CC) $(COPTS) main main.c bucket_t.c buddy.c
