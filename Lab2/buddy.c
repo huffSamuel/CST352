@@ -175,7 +175,7 @@ int printInList(int addr, int order, int listID)
         {
             if(list[order].m_offset[j] == addr)
             {
-                printf("0x%04x   %5d  ", addr, list[order].m_size);
+                printf("0x%04x   %5d  ", addr << 4, list[order].m_size);
                 if(listID)
                     printf(" free\n");
                 else
@@ -267,7 +267,7 @@ void my_free(void * ptr)
     }
     if(k == -1)
     {
-        Move(free_list, busy_list, i, j);
+        Move(free_list, busy_list, i, j + 1);
         coalesce(offset, 16 << i);
     }
     else
@@ -289,7 +289,7 @@ void my_free(void * ptr)
 ************************************************************************/
 void coalesce(int addr, int size)
 {
-    int buddyAddr = (findBuddy(addr << 4, size) >> 4);
+    int buddyAddr = (findBuddy(addr, size) >> 4);
 
     int i;
     int j;
