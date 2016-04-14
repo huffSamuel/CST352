@@ -289,31 +289,19 @@ void my_free(void * ptr)
 void coalesce(int addr, int size)
 {
     int buddyAddr = (findBuddy(addr, size) >> 4);
-
-    int i;
-    int j;
-    int count;
+    int order = computeOrder(size);
     int flag = -1;
+    int i;
 
-    // Traverse each order
-    for(i = 7; i >= 0; --i)
+    for(i = 0; i < free_list[order].m_count - 1 && flag == -1; ++i)
     {
-        count = free_list[i].m_count;
-        // Traverse each address in the order
-        for(j = 0; j < count; ++j)
-        {
-            // If the offset is the proper buddy address
-            if(free_list[i].m_offset[j] == buddyAddr)
-            {
-                flag = Join(i, j, addr);
-                break;
-            }
-        }
-        if(flag != -1)
-        {
-            coalesce(flag, size << 1);
-            break;
-        }
+        if(free_list[order].m_offset[i] == buddyAddr)
+            flag = Join(order, buddyAddr, addr);
+    }
+
+    if(flag != -1)
+    {
+        coalesce(flag, size << 1);
     }
 }
 

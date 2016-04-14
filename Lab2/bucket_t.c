@@ -81,34 +81,36 @@ intptr_t Join(int order, int addr, int addrB)
     
 
     // Find lower order offsets
-    for(i = 0; i < srcCount || (a != -1 && b != -1); ++i)
+    for(i = 0; i < srcCount && (b == -1 || a == -1); ++i)
     {
-        if(free_list[order].m_offset[i] == addr)
-            a = i;
-        else if(free_list[order].m_offset[i] == addrB)
+        if(free_list[order].m_offset[i] == addrB)
             b = i;
+        else if(free_list[order].m_offset[i] == addr)
+            a = i;
     }
 
-    if(a == -1 || b == -1) return -1;
+    // Return fail message
+    if(b == -1 || a == -1) return -1;
 
     free_list[order+1].m_offset[destCount] = addr > addrB ? addrB : addr;
+    free_list[order+1].m_count = destCount + 1;
 
     // Remove from lower order
     srcCount -= 2;
     free_list[order].m_count = srcCount;
     if(a < srcCount && b < srcCount)
     {
-        free_list[order].m_offset[a] = free_list[order].m_offset[srcCount + 1];
-        free_list[order].m_offset[b] = free_list[order].m_offset[srcCount + 2];
+        free_list[order].m_offset[a] = free_list[order].m_offset[srcCount+1];
+        free_list[order].m_offset[b] = free_list[order].m_offset[srcCount+2];
     }
     else if(a < srcCount)
     {
-        b = (a == srcCount + 1) ? srcCount + 2 : srcCount + 1;
+        b = (b == srcCount + 1) ? srcCount + 2 : srcCount + 1;
         free_list[order].m_offset[a] = free_list[order].m_offset[b];
     }
     else if(b < srcCount)
     {
-        a = (b == srcCount + 1) ? srcCount + 2 : srcCount + 1;
+        a = (a == srcCount + 1) ? srcCount + 2 : srcCount + 1;
         free_list[order].m_offset[b] = free_list[order].m_offset[a];
     }
 
