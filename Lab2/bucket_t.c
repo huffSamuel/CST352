@@ -1,7 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-
 #include "bucket_t.h"
 
 #define DEBUG_MODE 1
@@ -9,6 +5,8 @@
 #define MIN_BLOCK 16
 extern bucket_t * free_list;
 extern bucket_t * busy_list;
+
+extern int computeOrder(int size);
 
 /********************************************************************** 
 * Purpose: Adds a block to a memory list.
@@ -38,15 +36,16 @@ void Add(bucket_t * bucket, int size, int addr)
 *           <size> is the size of a block we wish to split.
 *
 * Postcondition: 
-*           Splits a block of size <size> if available. Returns the address of
-*           one of the split blocks.
+*   Splits a block of size <size> if available. Returns the higher address 
+*   of the split blocks.
 *
-*           Error: Returns -1
+*   Error: Returns -1
 *
-*           RECURSIVE
+*   RECURSIVE
 ************************************************************************/
 intptr_t split(int size)
 {
+    int check = 0;
     int order = computeOrder(size);
 
     if(size > MEM_SIZE) return -1;
@@ -56,7 +55,9 @@ intptr_t split(int size)
 
     if(count == 0) // Split one of the size up
     {
-        split(size << 1);
+        check = split(size << 1);
+        if(check == -1)
+            return -1;
         count = free_list[order].m_count;
     }
 
@@ -65,18 +66,19 @@ intptr_t split(int size)
     free_list[order].m_count = count - 1;
     Add(free_list, size>>1, offset);
     Add(free_list, size>>1, offset + (size >> 1));
-    return offset;
+    return offset + (size >> 1);
 }
 
 intptr_t Join(int order, int offsetA, int offsetB)
 {
     int destCount = free_list[order + 1].m_count;
-    int srcCount = free_list[order].m_count;
+    //int srcCount = free_list[order].m_count;
 
     // Set the lower of the two addresses
     free_list[order + 1].m_offset[destCount] = offsetA>offsetB?offsetB:offsetA;
 
     // Remove source offsetA and offsetB
+    return 0;
 }
 
 void Move(bucket_t * dest, bucket_t * source, int order, int offset)
@@ -84,14 +86,14 @@ void Move(bucket_t * dest, bucket_t * source, int order, int offset)
     int destCount = dest[order].m_count;
     int srcCount = source[order].m_count;
 
-    // Insert at end of free_list
-    dest[order].m_offset[destCount] = source[order].m_offset[offset];
+    // Insert at end of destination
+    dest[order].m_offset[destCount] = source[order].m_offset[offset-1];
     dest[order].m_count = destCount + 1;
+    source[order].m_count = srcCount - 1;
 
-    // Reorder source list
+    // Move end of source list into offset's spot if necessary
     if(offset < srcCount)
     {
-        source[order].m_offset[offset] = source[order].m_offset[srcCount];
-        source[order].m_count = srcCount - 1;
+        source[order].m_offset[offset-1] = source[order].m_offset[srcCount - 1];
     }
 }

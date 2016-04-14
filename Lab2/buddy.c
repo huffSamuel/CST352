@@ -25,18 +25,6 @@ void * mem_base;
 bucket_t * free_list;
 bucket_t * busy_list;
 int allocated;
-/*int main(int argc, char * argv[])
-{
-    intptr_t offset = 0;
-    allocated = 0;
-    my_mem_init();
-    my_print_mem(free_list, busy_list);
-    my_mem_cleanup(free_list, busy_list); 
-
-    if(DEBUG_MODE)
-        printf("%d bytes allocated\n", allocated);
-}*/
-
 
 /********************************************************************** 
 * Purpose: Initialized memory for my_malloc
@@ -81,10 +69,19 @@ void my_mem_init()
 
     // Add the initial 2048 block to the free_list
     Add(free_list, MEM_SIZE, 0);
-    /* FOR TESTING
-    Add(free_list, 1024, 0);
+    
+    /* Testing 2 chunks
+    Add(busy_list, 1024, 0);
     Add(free_list, 1024, 1024);
     */
+
+    /* Testing 4 chucnks
+    Add(busy_list, 512, 0);
+    Add(free_list, 512, 512);
+    Add(busy_list, 512, 1024);
+    Add(busy_list, 512, 1536);
+    */
+    
 }
 
 /********************************************************************** 
@@ -133,9 +130,75 @@ void my_mem_cleanup()
 void my_print_mem()
 {
     int i;
-    int j;
+    int addr;
 
     // Print the contents of free memory
+    printFree();
+    // Print blocks by ascending address
+    
+    printf("Address | Size | Status\n");
+    for(addr = 0; addr < 128; )
+    {
+        for(i = 0; i < 8; ++i)
+        { 
+            if(printInList(addr, i, 1) || printInList(addr, i, 0))
+            {
+                addr += (free_list[i].m_size >> 4);
+            }
+        }
+    }
+}
+
+/********************************************************************** 
+* Purpose: Prints size and free/busy information on <addr> location in memory
+*
+* Precondition: 
+*            <addr> is the address in memory to check
+*            <order> is the order of the address
+*            <listID> indicates which list to check
+*
+* Postcondition: 
+*            If the address exists in that list the information is printed
+*            and the function returns 1.
+*
+*            Returns 0 if address not found in list[order]
+************************************************************************/
+int printInList(int addr, int order, int listID)
+{
+    int j;
+    bucket_t * list = (listID == 1 ? free_list : busy_list);
+    
+    if(list[order].m_count > 0)
+    {
+        // Traverse the order
+        for(j = 0; j < list[order].m_count; ++j)
+        {
+            if(list[order].m_offset[j] == addr)
+            {
+                printf("0x%04x   %5d  ", addr, list[order].m_size);
+                if(listID)
+                    printf(" free\n");
+                else
+                    printf(" busy\n");
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+/********************************************************************** 
+* Purpose: Prints the contents of free memory
+*
+* Precondition: 
+*            
+* Postcondition: 
+*            Prints all offsets currently in free_list
+************************************************************************/
+void printFree()
+{
+    int i;
+    int j;
     for(i=0; i < 8; i++)
     {
         printf("free %#06x = ", free_list[i].m_size);
@@ -149,13 +212,7 @@ void my_print_mem()
             }
         }
         printf("\n");
-    }
-    // Print blocks by ascending address
-    short offset = 0;
-    for(i = 0; i < 8; i++) // For each order
-    {
-        
-    }
+    }     
 }
 
 /********************************************************************** 
@@ -220,6 +277,16 @@ void my_free(void * ptr)
     }
 }
 
+/********************************************************************** 
+* Purpose: Coalesces a block(<addr>, <size>) with it's buddy
+*
+* Precondition: 
+*   block(<addr>, <size>) is freed
+*
+* Postcondition: 
+*   If the buddy block is free the blocks will be joined and placed
+*   in the free list for the next highest order
+************************************************************************/
 void coalesce(int addr, int size)
 {
     int buddyAddr = (findBuddy(addr << 4, size) >> 4);
@@ -229,12 +296,15 @@ void coalesce(int addr, int size)
     int count;
     int flag = -1;
 
+    // Traverse each order
     for(i = 7; i >= 0; --i)
     {
         count = free_list[i].m_count;
+        // Traverse each address in the order
         for(j = 0; j < count; ++j)
         {
-            if(free_list[i].m_offset[j] = buddyAddr)
+            // If the offset is the proper buddy address
+            if(free_list[i].m_offset[j] == buddyAddr)
             {
                 flag = Join(i, j, addr);
                 break;
@@ -263,23 +333,29 @@ void coalesce(int addr, int size)
 void * my_malloc(int size)
 {
     intptr_t addr;
+    int offset;
+    
     if(size < 16)
         size = 16;
     else
         size = roundUp(size);
 
-    // Start allocating memory here
-    
-    return (void *)addr;
-}
-
-// TODO: Bad Logic. 
-intptr_t allocate(int size)
-{
     int order = computeOrder(size);
-    int count = free_list[order].m_count;
-}
 
+
+    if(!free_list[order].m_count < (128 >> order))
+        addr = split(size << 1);
+
+    if(addr == -1)
+    {
+        return (void *)-1; // Error in allocating
+    }
+
+    offset = free_list[order].m_count;
+    Move(busy_list, free_list, order, offset);
+
+    return (void *)(addr + mem_base);
+}
 
 /********************************************************************** 
 * Purpose: Rounds a size up to its nearest power of 2
@@ -295,7 +371,6 @@ intptr_t allocate(int size)
 ************************************************************************/
 int roundUp(int size)
 {
-    int i = 0;
     if(size < MIN_BLOCK)
         return MIN_BLOCK;
     else if(size <= MEM_SIZE)    // Bit twiddle hack for nearest power of 2

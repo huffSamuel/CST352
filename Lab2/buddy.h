@@ -12,6 +12,9 @@ void my_free(void * ptr);
 int roundUp(int size);
 int computeOrder(int size);
 int findBuddy(int addr, short size);
+int printInList(int addr, int order, int listID);
+void printFree();
+int printBusy(int addr, int order);
 
 void coalesce(int addr, int size);
 intptr_t allocate(int size);

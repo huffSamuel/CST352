@@ -4,9 +4,9 @@
 
 typedef struct
 {
-  short m_size;			// Number of bytes for addresses in this bucket
+  short m_size;         // Number of bytes for addresses in this bucket
   char m_count;       // Number of this order used. Max is 64 16 byte fields
-  char * m_offset;		// True offset is calculated by m_offset << 4
+  char * m_offset;      // True offset is calculated by m_offset << 4
 } bucket_t;
 
 void Add(bucket_t * bucket, int size, int addr);
