@@ -12,13 +12,13 @@ extern int computeOrder(int size);
 * Purpose: Adds a block to a memory list.
 *
 * Precondition: 
-*            <bucket> is the memory list to add the element to.
-*            <size> is the size of the block.
-*            <addr> is the actual offset of the block.
+*   <bucket> is the memory list to add the element to.
+*   <size> is the size of the block.
+*   <addr> is the actual offset of the block.
 *
 * Postcondition: 
-*            <addr> is adapted to short offset
-*            <bucket> now contains the entry for block(size, addr)
+*   <addr> is adapted to short offset
+*   <bucket> now contains the entry for block(size, addr)
 *
 ************************************************************************/
 void Add(bucket_t * bucket, int size, int addr)
@@ -33,7 +33,7 @@ void Add(bucket_t * bucket, int size, int addr)
 * Purpose: Splits a block of size <size> into 2 blocks of <size>/2
 *
 * Precondition: 
-*           <size> is the size of a block we wish to split.
+*   <size> is the size of a block we wish to split.
 *
 * Postcondition: 
 *   Splits a block of size <size> if available. Returns the higher address 
@@ -56,7 +56,7 @@ intptr_t split(int size)
     if(count == 0) // Split one of the size up
     {
         check = split(size << 1);
-        if(check == -1)
+        if(check == -1) 
             return -1;
         count = free_list[order].m_count;
     }
@@ -70,16 +70,49 @@ intptr_t split(int size)
 }
 
 // Working here
-intptr_t Join(int order, int offsetA, int offsetB)
+intptr_t Join(int order, int addr, int addrB)
 {
-    int destCount = free_list[order + 1].m_count;
-    //int srcCount = free_list[order].m_count;
+    int i;
+    int a = -1;
+    int b = -1;
+    int srcCount = free_list[order].m_count;
+    // Place in higher order
+    int destCount = free_list[order+1].m_count;
+    
 
-    // Set the lower of the two addresses
-    free_list[order + 1].m_offset[destCount] = offsetA>offsetB?offsetB:offsetA;
+    // Find lower order offsets
+    for(i = 0; i < srcCount || (a != -1 && b != -1); ++i)
+    {
+        if(free_list[order].m_offset[i] == addr)
+            a = i;
+        else if(free_list[order].m_offset[i] == addrB)
+            b = i;
+    }
 
-    // Remove source offsetA and offsetB
-    return 0;
+    if(a == -1 || b == -1) return -1;
+
+    free_list[order+1].m_offset[destCount] = addr > addrB ? addrB : addr;
+
+    // Remove from lower order
+    srcCount -= 2;
+    free_list[order].m_count = srcCount;
+    if(a < srcCount && b < srcCount)
+    {
+        free_list[order].m_offset[a] = free_list[order].m_offset[srcCount + 1];
+        free_list[order].m_offset[b] = free_list[order].m_offset[srcCount + 2];
+    }
+    else if(a < srcCount)
+    {
+        b = (a == srcCount + 1) ? srcCount + 2 : srcCount + 1;
+        free_list[order].m_offset[a] = free_list[order].m_offset[b];
+    }
+    else if(b < srcCount)
+    {
+        a = (b == srcCount + 1) ? srcCount + 2 : srcCount + 1;
+        free_list[order].m_offset[b] = free_list[order].m_offset[a];
+    }
+
+    return free_list[order+1].m_offset[destCount];
 }
 
 void Move(bucket_t * dest, bucket_t * source, int order, int offset)

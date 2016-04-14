@@ -6,7 +6,7 @@ int main(int argc, char * argv[])
     intptr_t a = (intptr_t)my_malloc(512);
     a = (intptr_t)my_malloc(512);
     my_print_mem();
-    printf("Freeing addr %d", (int)a);
+    printf("Freeing addr %d\n", (int)a);
     my_free((void*)a);
     my_print_mem();
     my_mem_cleanup();
