@@ -1,8 +1,6 @@
 #include <stdlib.h>
 #include "bucket_t.h"
 
-// Function comments located in .c file
-
 void my_mem_init();
 void my_mem_cleanup();
 void * my_malloc(int size);

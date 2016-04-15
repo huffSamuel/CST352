@@ -51,6 +51,10 @@ void my_mem_init()
 {
     int i = 0;      // Loop counter     
 
+    // Trap duplicate attempts to init
+    if(mem_base != NULL)
+        return;
+
     // Allocate our memory chunk
     mem_base = malloc(MEM_SIZE);
     if(mem_base == 0)
@@ -79,7 +83,7 @@ void my_mem_init()
         free_list[i].m_count = 0;
         busy_list[i].m_offset = malloc((1 << (8-i)) * sizeof(char));
         free_list[i].m_offset = malloc((1 << (8-i)) * sizeof(char));
-        if(free_list[i] == 0 || busy_list[i] == 0)
+        if(free_list[i].m_offset == 0 || busy_list[i].m_offset == 0)
         {
             if(fprintf(stderr, "Unable to allocate bucket memory\n") <= 0)
                 exit(-1);
@@ -108,6 +112,10 @@ void my_mem_init()
 void my_mem_cleanup()
 {
     int i = 0;      // Loop counter
+
+    // Trap attempts to clean up before init
+    if(mem_base == NULL)
+        return;
 
     // Free list members
     for(i = 0; i < 8; i++)
@@ -141,19 +149,20 @@ void my_validate()
     int i = 0;          // Loop counter
     int total = 0;      // Byte counter
 
-    // Travers free and busy lists
+    // Trap attempts to validate before init
+    if(mem_base == NULL)
+        return;
+
+    // Traverse free and busy lists
     for(i = 0; i < computeOrder(MEM_SIZE) + 1; ++i)
-    {
-        total += free_list[i].m_count * (16 << i);
-        total += busy_list[i].m_count * (16 << i);
-    }
+        total += (busy_list[i].m_count + free_list[i].m_count) * (16 << i);
 
     // If an error is found
     if(total != MEM_SIZE)
     { 
         if(printf("Memory error occurred\n") <= 0)
         {
-            if(fprintf("Unable to print to stdout") <= 0)
+            if(fprintf(stderr,"Unable to print to stdout") <= 0)
                 exit(-1);
             exit(3);
         }
@@ -176,6 +185,10 @@ void my_print_mem()
     int i = 0;      // Loop counter
     int addr = 0;   // Address counter
 
+    // Trap attempts to print before init
+    if(mem_base == NULL)
+        return;
+
     // Print the contents of free memory
     printf("\n");
     printFree();
@@ -183,7 +196,7 @@ void my_print_mem()
     // Print blocks by ascending address
     if(printf("Address | Size | Status\n") <= 0)
     {
-        if(fprintf("Unable to print to stdout") <= 0)
+        if(fprintf(stderr,"Unable to print to stdout") <= 0)
             exit(-1);
         exit(3);
     }
@@ -192,9 +205,7 @@ void my_print_mem()
         for(i = 0; i < 8; ++i)
         { 
             if(printInList(addr, i, 1) || printInList(addr, i, 0))
-            {
                 addr += (free_list[i].m_size >> 4);
-            }
         }
     }
 }
@@ -230,7 +241,7 @@ int printInList(int addr, int order, int listID)
             {
                 if(printf("0x%04x   %5d  ", addr << 4, list[order].m_size) <= 0)
                 {
-                    if(fprintf("Unable to print to stdout") <= 0)
+                    if(fprintf(stderr,"Unable to print to stdout") <= 0)
                         exit(-1);
                     exit(3);
                 }
@@ -238,7 +249,7 @@ int printInList(int addr, int order, int listID)
                 {
                     if(printf(" free\n") <= 0)
                     {
-                        if(fprintf("Unable to print to stdout") <= 0)
+                        if(fprintf(stderr,"Unable to print to stdout") <= 0)
                             exit(-1);
                         exit(3);
                     }
@@ -247,7 +258,7 @@ int printInList(int addr, int order, int listID)
                 {
                     if(printf(" busy\n") <= 0)
                     {
-                        f(fprintf("Unable to print to stdout") <= 0)
+                        if(fprintf(stderr,"Unable to print to stdout") <= 0)
                             exit(-1);
                         exit(3);
                     }
@@ -277,7 +288,7 @@ void printFree()
     {
         if(printf("free %#06x = ", free_list[i].m_size) <= 0)
         {
-            if(fprintf("Unable to print to stdout") <= 0)
+            if(fprintf(stderr,"Unable to print to stdout") <= 0)
                 exit(-1);
             exit(3);
         }
@@ -285,7 +296,7 @@ void printFree()
         {
             if(printf("EMPTY") <= 0)
             {
-                if(fprintf("Unable to print to stdout") <= 0)
+                if(fprintf(stderr,"Unable to print to stdout") <= 0)
                     exit(-1);
                 exit(3);
             }
@@ -296,7 +307,7 @@ void printFree()
             {
                 if(printf("0x%04x ", free_list[i].m_offset[j] << 4) <= 0)
                 {
-                    if(fprintf("Unable to print to stdout") <= 0)
+                    if(fprintf(stderr,"Unable to print to stdout") <= 0)
                         exit(-1);
                     exit(3);
                 }
@@ -304,7 +315,7 @@ void printFree()
         }
         if(printf("\n") <= 0)
         {
-            if(fprintf("Unable to print to stdout") <= 0)
+            if(fprintf(stderr,"Unable to print to stdout") <= 0)
                 exit(-1);
             exit(3);
         }
@@ -405,9 +416,7 @@ void coalesce(int addr, int size)
 
     // If joined successfully recurse for further joins
     if(flag != -1)
-    {
         coalesce(flag, size << 1);
-    }
 }
 
 /********************************************************************** 
@@ -474,22 +483,14 @@ int roundUp(int size)
     if(size < MIN_BLOCK)
         return MIN_BLOCK;
     // Bit twiddle hack for nearest power of 2
-    else if(size <= MEM_SIZE)    
-    {
-        size--;
-        size |= size >> 1;
-        size |= size >> 2;
-        size |= size >> 4;
-        size |= size >> 8;
-        size |= size >> 16;
-        size++;
-        return size;
-    }
-    // Overflow error
-    else
-    {
-        return -1; // Error code from function
-    }
+    size--;
+    size |= size >> 1;
+    size |= size >> 2;
+    size |= size >> 4;
+    size |= size >> 8;
+    size |= size >> 16;
+    size++;
+    return size;
 }
 
 /********************************************************************** 
@@ -515,4 +516,3 @@ int computeOrder(int size)
 
     return order;
 }
-

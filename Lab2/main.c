@@ -2,9 +2,11 @@
 
 int main(int argc, char * argv[])
 {
+    my_print_mem();
     intptr_t a[128];
     int i;
     my_mem_init();
+    my_print_mem();
     for(i = 0; i < 128; ++i)
     {
         a[i] = (intptr_t)my_malloc(16);
