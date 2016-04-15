@@ -14,18 +14,25 @@
 *
 * Lab/Assignment: Lab 2 - Memory Allocator
 *
-* Overview:
+* Overview: This lab simulates memory allocation using the buddy system.
+*   The program has a limit of 2048 bytes of memory to allocate and 
+*   responds as malloc() and free() via the methods my_malloc() and my_free().
+*   These functions allocate and free memory inside the 2048 block.
 *
 * Input:
+*   None required.
 *
 * Output:
+*   Memory is allocated and freed as the user requires.
 *
+*   Error -1: Unknown fatal error
+*   Error 1: Unable to free requested memory.
+*   Error 2: Unable to allocate managed/list/bucket memory.
+*   Error 3: Unable to print to stdout.
 ****************************************************************/
-void * mem_base;
-bucket_t * free_list;
-bucket_t * busy_list;
-int allocated;
-
+void * mem_base;            // Our memory to manage
+bucket_t * free_list;       // List of free memory locations
+bucket_t * busy_list;       // List of busy memory locations
 /********************************************************************** 
 * Purpose: Initialized memory for my_malloc
 *
@@ -42,15 +49,26 @@ int allocated;
 ************************************************************************/
 void my_mem_init()
 {
-    // Setup for initialization
-    int i;
+    int i = 0;      // Loop counter     
 
     // Allocate our memory chunk
     mem_base = malloc(MEM_SIZE);
+    if(mem_base == 0)
+    {
+        if(fprintf(stderr, "Unable to allocate base memory\n") <= 0)
+            exit(-1);
+        exit(2);
+    }
 
     // Allocate the free and busy lists
     free_list = malloc(8 * sizeof(bucket_t));
     busy_list = malloc(8 * sizeof(bucket_t));
+    if(free_list == 0 || busy_list == 0)
+    {
+        if(fprintf(stderr, "Unable to allocate list memory\n") <= 0)
+            exit(-1);
+        exit(2);
+    }
 
     // Allocate and initialize contents of the tables
     for(i = 0; i < 8; i++)
@@ -60,27 +78,17 @@ void my_mem_init()
         busy_list[i].m_count = 0;
         free_list[i].m_count = 0;
         busy_list[i].m_offset = malloc((1 << (8-i)) * sizeof(char));
-
-        allocated += (int)2*((1 << (8-i)) * sizeof(char));
-
         free_list[i].m_offset = malloc((1 << (8-i)) * sizeof(char));
+        if(free_list[i] == 0 || busy_list[i] == 0)
+        {
+            if(fprintf(stderr, "Unable to allocate bucket memory\n") <= 0)
+                exit(-1);
+            exit(2);
+        }
     }
 
     // Add the initial 2048 block to the free_list
     Add(free_list, MEM_SIZE, 0);
-    
-    /* Testing 2 chunks
-    Add(busy_list, 1024, 0);
-    Add(free_list, 1024, 1024);
-    */
-
-    /* Testing 4 chucnks
-    Add(busy_list, 512, 0);
-    Add(free_list, 512, 512);
-    Add(busy_list, 512, 1024);
-    Add(busy_list, 512, 1536);
-    */
-    
 }
 
 /********************************************************************** 
@@ -99,8 +107,9 @@ void my_mem_init()
 ************************************************************************/
 void my_mem_cleanup()
 {
+    int i = 0;      // Loop counter
+
     // Free list members
-    int i;
     for(i = 0; i < 8; i++)
     {
         free(busy_list[i].m_offset);
@@ -116,6 +125,42 @@ void my_mem_cleanup()
 }
 
 /********************************************************************** 
+* Purpose: Validates memory to make sure only 2048 bytes have been allocated.  
+*
+* Precondition: 
+*   None
+*
+* Postcondition: 
+*   None if successful.
+*
+*   Prints an error on failure.
+*
+************************************************************************/
+void my_validate()
+{
+    int i = 0;          // Loop counter
+    int total = 0;      // Byte counter
+
+    // Travers free and busy lists
+    for(i = 0; i < computeOrder(MEM_SIZE) + 1; ++i)
+    {
+        total += free_list[i].m_count * (16 << i);
+        total += busy_list[i].m_count * (16 << i);
+    }
+
+    // If an error is found
+    if(total != MEM_SIZE)
+    { 
+        if(printf("Memory error occurred\n") <= 0)
+        {
+            if(fprintf("Unable to print to stdout") <= 0)
+                exit(-1);
+            exit(3);
+        }
+    }
+}
+
+/********************************************************************** 
 * Purpose: Prints the current state of memory
 *
 * Precondition: 
@@ -128,14 +173,20 @@ void my_mem_cleanup()
 ************************************************************************/
 void my_print_mem()
 {
-    int i;
-    int addr;
+    int i = 0;      // Loop counter
+    int addr = 0;   // Address counter
 
     // Print the contents of free memory
+    printf("\n");
     printFree();
 
     // Print blocks by ascending address
-    printf("Address | Size | Status\n");
+    if(printf("Address | Size | Status\n") <= 0)
+    {
+        if(fprintf("Unable to print to stdout") <= 0)
+            exit(-1);
+        exit(3);
+    }
     for(addr = 0; addr < 128; )
     {
         for(i = 0; i < 8; ++i)
@@ -164,9 +215,12 @@ void my_print_mem()
 ************************************************************************/
 int printInList(int addr, int order, int listID)
 {
-    int j;
+    int j = 0;      // Loop counter
+
+    // Pick list based on listID
     bucket_t * list = (listID == 1 ? free_list : busy_list);
     
+    // Traverse the buckets
     if(list[order].m_count > 0)
     {
         // Traverse the order
@@ -174,11 +228,30 @@ int printInList(int addr, int order, int listID)
         {
             if(list[order].m_offset[j] == addr)
             {
-                printf("0x%04x   %5d  ", addr << 4, list[order].m_size);
+                if(printf("0x%04x   %5d  ", addr << 4, list[order].m_size) <= 0)
+                {
+                    if(fprintf("Unable to print to stdout") <= 0)
+                        exit(-1);
+                    exit(3);
+                }
                 if(listID)
-                    printf(" free\n");
+                {
+                    if(printf(" free\n") <= 0)
+                    {
+                        if(fprintf("Unable to print to stdout") <= 0)
+                            exit(-1);
+                        exit(3);
+                    }
+                }
                 else
-                    printf(" busy\n");
+                {
+                    if(printf(" busy\n") <= 0)
+                    {
+                        f(fprintf("Unable to print to stdout") <= 0)
+                            exit(-1);
+                        exit(3);
+                    }
+                }
                 return 1;
             }
         }
@@ -196,21 +269,45 @@ int printInList(int addr, int order, int listID)
 ************************************************************************/
 void printFree()
 {
-    int i;
-    int j;
+    int i = 0;      // Order loop counter
+    int j = 0;      // Offset loop counter
+
+    // Traverse free_list
     for(i=0; i < 8; i++)
     {
-        printf("free %#06x = ", free_list[i].m_size);
+        if(printf("free %#06x = ", free_list[i].m_size) <= 0)
+        {
+            if(fprintf("Unable to print to stdout") <= 0)
+                exit(-1);
+            exit(3);
+        }
         if(free_list[i].m_count == 0)
-            printf("0x0000");
+        {
+            if(printf("EMPTY") <= 0)
+            {
+                if(fprintf("Unable to print to stdout") <= 0)
+                    exit(-1);
+                exit(3);
+            }
+        }
         else
         {
             for(j = 0; j < free_list[i].m_count; j++)
             {
-                printf("0x%04x ", free_list[i].m_offset[j] << 4);
+                if(printf("0x%04x ", free_list[i].m_offset[j] << 4) <= 0)
+                {
+                    if(fprintf("Unable to print to stdout") <= 0)
+                        exit(-1);
+                    exit(3);
+                }
             }
         }
-        printf("\n");
+        if(printf("\n") <= 0)
+        {
+            if(fprintf("Unable to print to stdout") <= 0)
+                exit(-1);
+            exit(3);
+        }
     }     
 }
 
@@ -243,17 +340,22 @@ int findBuddy(int addr, short size)
 ************************************************************************/
 void my_free(void * ptr)
 {
-    int i;
-    int j;
-    int k;
-    int count;
-    int offset = (ptr - mem_base) >> 4;
+    int i = 0;          // Loop counter for buckets
+    int j = 0;          // Loop counter for orders in a bucket
+    int k = 0;          // Found flag
+    int count = 0;      // Number of elements in a bucket
+    int offset = 0;     // Offset we are searching for
+
     if(ptr == NULL)
         return;
 
+    offset = (ptr - mem_base) >> 4;
+
+    // Traverse bucket_t of busy_list
     for (i = 7; i >= 0; --i)
     {
          count = busy_list[i].m_count;
+         // Traverse the order
          for(j = 0; j < count; ++j)
          {
             if(busy_list[i].m_offset[j] == offset)
@@ -271,8 +373,9 @@ void my_free(void * ptr)
     }
     else
     {
-        if(fprintf(stderr, "Failed to free memory\n") <= 0)
-            exit(1);
+        if(fprintf(stderr, "My_Seg_Fault: 0x%08x \n", (uint)(intptr_t)ptr) <= 0)
+            exit(-1);
+        exit(1);
     }
 }
 
@@ -288,17 +391,19 @@ void my_free(void * ptr)
 ************************************************************************/
 void coalesce(int addr, int size)
 {
-    int buddyAddr = (findBuddy(addr, size) >> 4);
-    int order = computeOrder(size);
-    int flag = -1;
-    int i;
+    int buddyAddr = (findBuddy(addr, size) >> 4);   // Buddy address
+    int order = computeOrder(size);                 // Order we are searching
+    int flag = -1;                                  // Found flag
+    int i = 0;                                      // Loop counter
 
+    // Check if buddy is joinable
     for(i = 0; i < free_list[order].m_count - 1 && flag == -1; ++i)
     {
         if(free_list[order].m_offset[i] == buddyAddr)
             flag = Join(order, buddyAddr, addr);
     }
 
+    // If joined successfully recurse for further joins
     if(flag != -1)
     {
         coalesce(flag, size << 1);
@@ -319,25 +424,31 @@ void coalesce(int addr, int size)
 ************************************************************************/
 void * my_malloc(int size)
 {
-    intptr_t addr;
-    int offset;
+    intptr_t addr = 0;      // Returned address
+    int offset = 0;         // Offset into free list to allocate
     
+    // Calculate base 2 value or return invalid
     if(size < 16)
         size = 16;
-    else
+    else if(size > MEM_SIZE)
+        return (void *)NULL;
+    else 
         size = roundUp(size);
 
     int order = computeOrder(size);
 
-
-    if(!free_list[order].m_count < (128 >> order))
+    // Find a free space from available or splitting
+    offset = free_list[order].m_count;
+    if(offset > 0)
+        addr = free_list[order].m_offset[offset-1] << 4;
+    else
         addr = split(size << 1);
 
+    // Return NULL if insufficient space
     if(addr == -1)
-    {
-        return (void *)-1; // Error in allocating
-    }
+        return (void *)NULL;
 
+    // Perform the move
     offset = free_list[order].m_count;
     Move(busy_list, free_list, order, offset);
 
@@ -359,9 +470,11 @@ void * my_malloc(int size)
 ************************************************************************/
 int roundUp(int size)
 {
+    // Round to minimum size
     if(size < MIN_BLOCK)
         return MIN_BLOCK;
-    else if(size <= MEM_SIZE)    // Bit twiddle hack for nearest power of 2
+    // Bit twiddle hack for nearest power of 2
+    else if(size <= MEM_SIZE)    
     {
         size--;
         size |= size >> 1;
@@ -372,6 +485,7 @@ int roundUp(int size)
         size++;
         return size;
     }
+    // Overflow error
     else
     {
         return -1; // Error code from function
@@ -391,8 +505,8 @@ int roundUp(int size)
 ************************************************************************/
 int computeOrder(int size)
 {
-    int currentSize = MIN_BLOCK;
-    int order = 0;
+    int currentSize = MIN_BLOCK;        // Current block size
+    int order = 0;                      // Current order
     while(currentSize < size)
     {
         currentSize <<= 1;

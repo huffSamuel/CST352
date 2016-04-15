@@ -1,8 +1,14 @@
+/****************************************************************
+* Author: Samuel
+* Filename: bucket_t.c
+* Date Created: April 7th, 2016
+* Modifications: 
+****************************************************************/
 #include "bucket_t.h"
 
-#define DEBUG_MODE 1
 #define MEM_SIZE 2048
 #define MIN_BLOCK 16
+
 extern bucket_t * free_list;
 extern bucket_t * busy_list;
 
@@ -23,8 +29,8 @@ extern int computeOrder(int size);
 ************************************************************************/
 void Add(bucket_t * bucket, int size, int addr)
 {
-    int order = computeOrder(size);
-    int used = bucket[order].m_count;
+    int order = computeOrder(size);             // Order of the added block
+    int used = bucket[order].m_count;           // Number blocks used in the bucket
     bucket[order].m_offset[used] = addr >> 4;
     bucket[order].m_count = used + 1;
 }
@@ -45,40 +51,51 @@ void Add(bucket_t * bucket, int size, int addr)
 ************************************************************************/
 intptr_t split(int size)
 {
-    int check = 0;
-    int order = computeOrder(size);
-
     if(size > MEM_SIZE) return -1;
 
-    int count = free_list[order].m_count;
-    int offset;
+    int order = computeOrder(size);         // Order of the requested block
+    int count = free_list[order].m_count;   // Number of blocks of that order
+    int offset;                             // Placeholder for offset to store
 
-    if(count == 0) // Split one of the size up
+    // If none available split next size up
+    if(count == 0)
     {
-        check = split(size << 1);
-        if(check == -1) 
+        if(split(size << 1) == -1)
             return -1;
         count = free_list[order].m_count;
     }
 
     offset = (free_list[order].m_offset[count - 1]) << 4;
 
+    // Add new blocks to next order down
     free_list[order].m_count = count - 1;
     Add(free_list, size>>1, offset);
     Add(free_list, size>>1, offset + (size >> 1));
+
     return offset + (size >> 1);
 }
 
-// Working here
+/********************************************************************** 
+* Purpose: Joins to equivalent sized blocks and places them in the higher order
+*
+* Precondition: 
+*   <order> is the order of the two blocks.
+*   <addr> is the address of one of the buddys.
+*   <addrB> is the address of the other buddy.
+*
+* Postcondition: 
+*   If blocks are joinable it joins the blocks and places them in the 
+*   free list with a higher order. Returns the address of the new block.
+*
+*   Unsuccessful join: Return -1
+************************************************************************/
 intptr_t Join(int order, int addr, int addrB)
 {
-    int i;
-    int a = -1;
-    int b = -1;
-    int srcCount = free_list[order].m_count;
-    // Place in higher order
-    int destCount = free_list[order+1].m_count;
-    
+    int i = 0;      // Offset loop counter
+    int a = -1;     // Flag for address A found + a's offset
+    int b = -1;     // Flag for address B found + b's offset
+    int srcCount = free_list[order].m_count;    // Elements in source offset
+    int destCount = free_list[order+1].m_count; // Elements in destination offset
 
     // Find lower order offsets
     for(i = 0; i < srcCount && (b == -1 || a == -1); ++i)
@@ -92,12 +109,33 @@ intptr_t Join(int order, int addr, int addrB)
     // Return fail message
     if(b == -1 || a == -1) return -1;
 
+    // Place in higher order
     free_list[order+1].m_offset[destCount] = addr > addrB ? addrB : addr;
     free_list[order+1].m_count = destCount + 1;
 
     // Remove from lower order
     srcCount -= 2;
     free_list[order].m_count = srcCount;
+    
+    removeOrder(order, a, b, srcCount);
+
+    return free_list[order+1].m_offset[destCount];
+}
+
+/********************************************************************** 
+* Purpose: Removes two blocks from an order of the free list.
+*
+* Precondition: 
+*   <order> is the order of the two blocks.
+*   <addr> is the offset of one of the buddys.
+*   <addrB> is the offset of the other buddy.
+*   <srcCount> is the number of objects in the source bucket
+*
+* Postcondition: 
+*   Both blocks are removed and list is reordered as necessary.
+************************************************************************/
+void removeOrder(int order, int a, int b, int srcCount)
+{
     if(a < srcCount && b < srcCount)
     {
         free_list[order].m_offset[a] = free_list[order].m_offset[srcCount+1];
@@ -113,14 +151,24 @@ intptr_t Join(int order, int addr, int addrB)
         a = (a == srcCount + 1) ? srcCount + 2 : srcCount + 1;
         free_list[order].m_offset[b] = free_list[order].m_offset[a];
     }
-
-    return free_list[order+1].m_offset[destCount];
 }
 
+/********************************************************************** 
+* Purpose: Moves a block from source bucket to destination bucket
+*
+* Precondition: 
+*   <dest> is the destination bucket.
+*   <source> is the source bucket.
+*   <order> is the order of the block to move.
+*   <offset> is the offest into the source bucket to move.
+*
+* Postcondition: 
+*   Both blocks are removed and list is reordered as necessary.
+************************************************************************/
 void Move(bucket_t * dest, bucket_t * source, int order, int offset)
 {
-    int destCount = dest[order].m_count;
-    int srcCount = source[order].m_count;
+    int destCount = dest[order].m_count;    // Elements in destingation order
+    int srcCount = source[order].m_count;   // Elements in source order
 
     // Insert at end of destination
     dest[order].m_offset[destCount] = source[order].m_offset[offset-1];
@@ -129,7 +177,5 @@ void Move(bucket_t * dest, bucket_t * source, int order, int offset)
 
     // Move end of source list into offset's spot if necessary
     if(offset < srcCount)
-    {
         source[order].m_offset[offset-1] = source[order].m_offset[srcCount - 1];
-    }
 }

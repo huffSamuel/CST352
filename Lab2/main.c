@@ -2,13 +2,20 @@
 
 int main(int argc, char * argv[])
 {
+    intptr_t a[128];
+    int i;
     my_mem_init();
-    intptr_t a = (intptr_t)my_malloc(512);
-    a = (intptr_t)my_malloc(512);
+    for(i = 0; i < 128; ++i)
+    {
+        a[i] = (intptr_t)my_malloc(16);
+    }
     my_print_mem();
-    printf("Freeing addr %d\n", (int)a);
-    my_free((void*)a);
+    for(i = 0; i < 128; ++i)
+    {
+        my_free((void*)a[i]);
+    }
     my_print_mem();
+    my_validate();
     my_mem_cleanup();
     return 0;
 }
