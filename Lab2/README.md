@@ -5,6 +5,7 @@ The purpose of this lab is to familarize yourself with the workings of a memory 
 ## Requirements
 
 Implement a buddy system allocator that meets the following requirements:
+
 1. Memory size is 2048 bytes.
 2. Minimum block size is 16 bytes.
 3. Allocating and freeing must follow the format of malloc() and free().
