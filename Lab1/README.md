@@ -18,5 +18,5 @@ Scored 80/100 points on the lab. Feedback:
 -  In process.c, main() should be broken into smaller functions.
 
 Scored 27/30 points on the paranoia checks. Feedback:
-You did not check your close functions or your wait functions﻿﻿﻿﻿.
-Other than that, looks good.﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿
+-  You did not check your close functions or your wait functions.
+-  Other than that, looks good.
