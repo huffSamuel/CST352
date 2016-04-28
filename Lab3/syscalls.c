@@ -5,8 +5,8 @@
 
 #define PRINTS_CALL 1
 #define EXIT_CALL   2
-#define HALT_CALL   3
-#define GETL_CALL   6
+#define GETS_CALL   5
+#define GETI_CALL   7
 
 typedef struct 
 {
@@ -14,6 +14,13 @@ typedef struct
     int addr;
     int status;
 } io_blk_t;
+
+typedef struct 
+{
+    int op;
+    int * addr;
+    int status;
+} args_t;
 
 int main();
 int prints(char * string);
@@ -28,16 +35,22 @@ int interrupt() {}
 // this is the function that will be called when TRAP instructions execute
 // you will have to edit this function to add your functionality
 // you will probably also want to change the args
-int systrap(int op, int other_args)
+int systrap(args_t args)
 {
-    if (op == PRINTS_CALL)
+    if (args.op == PRINTS_CALL)
     {
         // perform prints here
-        sys_prints(&other_args);
+        asm("OUTS", args.addr);
         asm("NOP");
-    } else if (op == EXIT_CALL) {
+    } 
+    else if (args.op == EXIT_CALL) 
+    {
         // halt the CPU
         asm("HALT");
+    }
+    else
+    {
+        asm("OUTS", "Invalid operator");
     }
     asm("RTI");
 }
@@ -45,14 +58,31 @@ int systrap(int op, int other_args)
 // this is called by user programs to initiate a TRAP
 // you will have to edit this function to add your functionality
 // you will probably also want to change the args
-int syscall(io_blk_t io_blk)
+int syscall(args_t * args)
 {
-    printi(io_blk.op);
-    printi(io_blk.addr);
-    if(io_blk.addr == PRINTS_CALL)
+    // Validate the arguments
+    if(args->op == PRINTS_CALL)
     {
-        asm("OUTS", io_blk.addr);
+        //asm("TRAP");
+        asm("OUTS", args->addr);
     }
+    else if(args->op == EXIT_CALL)
+    {
+        asm("HALT");
+    }
+    else if(args->op == GETS_CALL)
+    {
+        asm("INP", &args);
+        while(args->op >= 0 );
+    }
+    else if(args->op == GETI_CALL)
+    {
+        asm("INP", &args);
+        while(args->op >= 0);
+    }
+    else { asm("OUTS", "Invalid operator"); }
+
+    // Prepare return
     return 0;
 }
 
@@ -76,40 +106,73 @@ int sys_prints(char *msg)
 
 int halt()
 {
-    syscall(HALT_CALL, 0);
+    syscall(EXIT_CALL, 0);
 }
 
 int main()
 {
-    char buff[256];
-    sys_prints("In Main\n");
-    //sys_prints("Attempting to trap\n");
-    prints("Printed from trap\n");
-    //printi(3);
-    //printi(10);
-    //prints("\n");
+    char * buff;
+    int temp;
+    prints("Testing Prints\n");
+    prints("Hello World\n");
+    printi(10);
+    prints("\n");
+    //printi(temp);
 
     return 0;
 }
 
+// Prints a string of text to STDOUT
 int prints(char * string)
 {
-    io_blk_t io_blk;
-    io_blk.op = PRINTS_CALL;
-    io_blk.addr = string;
-    syscall(io_blk);
+    args_t args;                // Argument block
+    args.op = PRINTS_CALL;
+    args.addr = string;
+    syscall(&args);
     return 0;
 }
 
+// Prints an integer to STDOUT as a string
 int printi(int val)
 {
-    io_blk_t io_blk;
-    char buff[20];
+    args_t args;
+    char buff[20];      // Buffer to hold converted string value
 
     itostr(val, buff);
-    io_blk.op = PRINTS_CALL;
-    io_blk.addr = buff;
+    
+    args.op = PRINTS_CALL;
+    args.addr = buff;
+    syscall(&args);
+    return 0;
+}
 
-    sys_prints(buff);
+// Gets an integer from STDIN
+//int geti()
+//{
+//    args_t args;
+//    args.op = GETI_CALL;
+//    args.addr = 0;
+
+    //syscall(&args);
+//    printi(args.op);
+//    prints("\n");
+//    printi(args.addr);
+//    prints("\n");
+//    printi(args.status);
+//    prints("\n");
+    
+//    return args.addr;
+//}
+
+// Gets a string from STDIN
+int gets(char *buff)
+{
+    args_t args;
+    args.op = GETS_CALL;
+    args.addr = buff;
+
+    syscall(&args);
+    buff = args.addr;           // This one works.
+    //strcpy(buff, args.addr);  // Doesn't copy the last character correctly
     return 0;
 }

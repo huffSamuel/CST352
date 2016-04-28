@@ -16,4 +16,4 @@ clean:
 	rm -f syscalls.slb
 
 syscalls:
-	$(CC) syscalls.c
+	$(CC) syscalls.c -boot
