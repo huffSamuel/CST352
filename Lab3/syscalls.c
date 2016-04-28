@@ -3,84 +3,106 @@
 #include <machine_def.h>
 #include <string.h>
 
+#define EXEC_CALL   8
+#define IO_QUEUED   0x10000000
+#define IO_PENDING  0x20000000
+#define IO_ERROR    0x40000000
+#define IO_COMPLETE 0x80000000
 #define PRINTS_CALL 1
 #define EXIT_CALL   2
 #define GETS_CALL   6
 #define GETI_CALL   7
 
-typedef struct 
+typedef struct
 {
     int op;
     int addr;
     int status;
-} args_t;
+} io_blk_t;
 
 int main();
-int prints(char * string);
-int printi(int val);
-int geti();
-int gets(char *buff);
-int halt();
 
 // interrupt is not needed for this lab, but is needed to compile with -boot
 int interrupt() {}
 
-// this is the function that will be called when TRAP instructions execute
-// you will have to edit this function to add your functionality
-// you will probably also want to change the args
-int systrap(args_t * args)
-{
+/********************************************************************** 
+* Purpose: Performs the systrap to allow users to access OS level stuff.
+*
+* Precondition: 
+*   <args> is the argument for the system call.
+*
+* Postcondition: 
+*   User call is executed in OS level.
+*
+************************************************************************/
+int systrap(io_blk_t * args)
+{   
+    args->status = asm2("PUSHREG", BP_REG);
+    args += args->status;
+    args->status = asm2("PUSHREG", BP_REG);
+    args->addr += args->status;
+
     if(args->op == PRINTS_CALL)
     {
         asm("OUTS", args->addr);
     }
-    //else if(args->op == EXIT_CALL)
-    //{
-    //    asm("HALT");
-    //}
     else if(args->op == GETS_CALL)
     {
         asm("INP", args);
-        while(arg2.op >= 0);
+        while(args->op >= 0);
+        args->op = GETS_CALL;
     }
-    //else if(args->op == GETI_CALL)
-    //{
-    //    asm("INP", args);
-    //    while(args->op >= 0);
-    //}
-    //else if(args->op == EXIT_CALL)
-    //{
-    //  asm("HALT");
-    //}
+    else if(args->op == GETI_CALL)
+    {
+        asm("INP", args);
+        while(args->op >= 0);
+        args->op = GETI_CALL;
+    }
+    else if(args->op == EXIT_CALL)
+    {
+        asm("HALT");
+    }
     else 
     { 
-        asm("OUTS", "\n");
+        asm("OUTS", "Unknown opcode\n");
     }
+
     asm("RTI");
-}
-
-// this is called by user programs to initiate a TRAP
-// you will have to edit this function to add your functionality
-// you will probably also want to change the args
-int syscall(args_t * args)
-{
-    // Validate the arguments
-    
-    asm("TRAP");
-
-    // Prepare return
-    return 0;
 }
 
 int startup__()
 {
-    // go to user mode
-    asm2("SETMODE", FL_USER_MODE); 
+    io_blk_t io_blk;
 
-    // execute main
-    main();
+    int bp;
+    int high_mem;
 
-    // terminate the simulator when main is done
+    // Set the BP leaving enough room for our stack
+    bp = asm2("PUSHREG", SP_REG);
+    bp += 64;
+    asm2("POPREG", BP_REG, bp);
+
+    // Load user.slb into memory
+    io_blk.op = EXEC_CALL;
+    io_blk.addr = "user.slb";
+    io_blk.status = 0;
+    asm("INP", &io_blk);
+    while((io_blk.op & IO_COMPLETE) == 0)
+    {
+    }
+
+    // Set the LP leaving 1000 bytes of stack space
+    high_mem = bp + io_blk.status + 1000;
+    asm2("POPREG", LP_REG, high_mem);
+
+    // Set SP and FP
+    // NOTE: FP must be set LAST!
+    high_mem = io_blk.status + 4;
+    asm2("POPREG", SP_REG, high_mem);
+    asm2("POPREG", FP_REG, high_mem);
+
+    // Execute user.slb
+    asm2("JMPUSER", 8); 
     asm("HALT");
 }
 
@@ -88,82 +110,4 @@ int sys_prints(char *msg)
 {
     asm("OUTS", msg);
     return 0;
-}
-
-int halt()
-{
-    args_t args;                // Argument block
-    args.op = EXIT_CALL;
-    args.addr = 0;
-    syscall(args);
-}
-
-int main()
-{
-    char buff[30];
-    int temp;
-    // Testing printing functions
-    prints("Testing Prints\n");
-    //prints("Hello World\n");
-    //printi(10);
-    //prints("\n");
-
-    // Testing get functions
-    //gets(buff);
-    //prints(buff);
-    //temp = geti();
-    //printi(temp);
-
-    //halt();
-
-    return 0;
-}
-
-// Prints a string of text to STDOUT
-int prints(char * string)
-{
-    args_t args;                // Argument block
-    args.op = PRINTS_CALL;
-    args.addr = string;
-    syscall(&args);
-    return 0;
-}
-
-// Prints an integer to STDOUT as a string
-int printi(int val)
-{
-    args_t args;
-    char buff[20];      // Buffer to hold converted string value
-
-    itostr(val, buff);
-    
-    args.op = PRINTS_CALL;
-    args.addr = buff;
-    syscall(&args);
-    return 0;
-}
-
-// Gets a string from STDIN
-int gets(char *buff)
-{
-    args_t args;
-    args.op = GETS_CALL;
-    args.addr = buff;
-
-    syscall(&args);
-    return 0;
-}
-
-
-// Gets an integer from STDIN
-int geti()
-{
-    int * temp;
-    args_t args;
-    args.op = GETI_CALL;
-    args.addr = temp;
-
-    syscall(&args);
-    
-    return *temp;
 }

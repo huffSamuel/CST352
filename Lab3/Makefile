@@ -9,11 +9,19 @@
 #*******************************************************
 CC=stacklc
 
-all: syscalls
+all: user syscalls
 
 clean: 
 	rm -f syscalls.sl
 	rm -f syscalls.slb
+	rm -f user.sl
+	rm -f user.slb
+	rm -f final_startup__.sl
+	rm -f final_startup__.slb
 
 syscalls:
 	$(CC) syscalls.c -boot
+
+user:
+	$(CC) user.c
+
