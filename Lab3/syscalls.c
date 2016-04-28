@@ -1,4 +1,12 @@
-// Starting code for lab3b
+/****************************************************************
+* Author: Philip Howard
+* Filename: userLib.h
+* Date Created: Unknown
+* Modifications: 
+*       April 27, 2016 - Samuel Huff
+*           Added the systrap function.
+****************************************************************/
+#include <string.h>
 
 #include <machine_def.h>
 #include <string.h>

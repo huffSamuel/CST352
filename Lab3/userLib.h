@@ -5,6 +5,7 @@
 * Modifications: 
 ****************************************************************/
 #include <string.h>
+#include <machine_def.h>
 #define PRINTS_CALL 1
 #define EXIT_CALL   2
 #define GETS_CALL   6
@@ -34,6 +35,13 @@ typedef struct
 ************************************************************************/
 int syscall(args_t * args)
 {
+    int bp;
+    int lp;
+    bp = asm2("PUSHREG", BP_REG);
+    lp = asm2("PUSHREG", LP_REG);
+    if(args < bp || args > lp)
+        return 1;
+
     asm("TRAP");
 
     // Prepare return

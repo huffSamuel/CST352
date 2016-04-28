@@ -28,15 +28,16 @@ int main()
     prints("\n");
 
     //Testing get and print
+    prints("Enter a string: ");
+    gets(buff);
+    prints("You entered: ");
+    prints(buff);  
     prints("Enter a number: ");
     gets(buff);
     temp = geti();
     prints("You entered: ");
     printi(temp);
-    prints("Enter a string: ");
-    temp = gets(buff);
-    prints("You entered: ");
-    prints(buff);   
+    prints("\n");
 
     return 0;
 }

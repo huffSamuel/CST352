@@ -9,6 +9,10 @@
 #define IO_PENDING  0x20000000
 #define IO_ERROR    0x40000000
 #define IO_COMPLETE 0x80000000
+#define BP_REG  0
+#define SP_REG  3
+#define LP_REG  1
+#define FP_REG  4
 
 typedef struct
 {
