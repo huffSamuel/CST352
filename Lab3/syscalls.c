@@ -42,29 +42,28 @@ int systrap(io_blk_t * args)
     args->status = asm2("PUSHREG", BP_REG);
     args->addr += args->status;
 
-    if(args->op == PRINTS_CALL)
+    if (args->op == PRINTS_CALL)
     {
         asm("OUTS", args->addr);
     }
-    else if(args->op == GETS_CALL)
+    else if (args->op == GETS_CALL)
     {
         asm("INP", args);
-        while(args->op >= 0);
-        args->op = GETS_CALL;
+        while (args->op >= 0);
     }
-    else if(args->op == GETI_CALL)
+    else if (args->op == GETI_CALL)
     {
         asm("INP", args);
-        while(args->op >= 0);
-        args->op = GETI_CALL;
+        while (args->op >= 0);
     }
-    else if(args->op == EXIT_CALL)
+    else if (args->op == EXIT_CALL)
     {
         asm("HALT");
     }
     else 
     { 
         asm("OUTS", "Unknown opcode\n");
+        asm("NOP");
     }
 
     asm("RTI");
