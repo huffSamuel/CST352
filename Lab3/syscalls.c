@@ -28,22 +28,33 @@ int interrupt() {}
 // this is the function that will be called when TRAP instructions execute
 // you will have to edit this function to add your functionality
 // you will probably also want to change the args
-int systrap(args_t args)
+int systrap(args_t * args)
 {
-    if (args.op == PRINTS_CALL)
+    if(args->op == PRINTS_CALL)
     {
-        // perform prints here
-        asm("OUTS", args.addr);
-        asm("NOP");
-    } 
-    else if (args.op == EXIT_CALL) 
-    {
-        // halt the CPU
-        asm("HALT");
+        asm("OUTS", args->addr);
     }
-    else
+    //else if(args->op == EXIT_CALL)
+    //{
+    //    asm("HALT");
+    //}
+    else if(args->op == GETS_CALL)
     {
-        asm("OUTS", "Invalid operator");
+        asm("INP", args);
+        while(arg2.op >= 0);
+    }
+    //else if(args->op == GETI_CALL)
+    //{
+    //    asm("INP", args);
+    //    while(args->op >= 0);
+    //}
+    //else if(args->op == EXIT_CALL)
+    //{
+    //  asm("HALT");
+    //}
+    else 
+    { 
+        asm("OUTS", "\n");
     }
     asm("RTI");
 }
@@ -54,30 +65,8 @@ int systrap(args_t args)
 int syscall(args_t * args)
 {
     // Validate the arguments
-    if(args->op == PRINTS_CALL)
-    {
-        asm("OUTS", args->addr);
-    }
-    else if(args->op == EXIT_CALL)
-    {
-        asm("HALT");
-    }
-    else if(args->op == GETS_CALL)
-    {
-        asm("INP", args);
-        while(args->op >= 0);
-    }
-    else if(args->op == GETI_CALL)
-    {
-        asm("INP", args);
-        while(args->op >= 0);
-    }
-    else 
-    { 
-        asm("OUTS", "Invalid operator"); 
-        printi(args->op);
-        asm("OUTS", "\n");
-    }
+    
+    asm("TRAP");
 
     // Prepare return
     return 0;
@@ -86,7 +75,7 @@ int syscall(args_t * args)
 int startup__()
 {
     // go to user mode
-    //asm2("SETMODE", FL_USER_MODE); 
+    asm2("SETMODE", FL_USER_MODE); 
 
     // execute main
     main();
@@ -103,7 +92,10 @@ int sys_prints(char *msg)
 
 int halt()
 {
-    syscall(EXIT_CALL, 0);
+    args_t args;                // Argument block
+    args.op = EXIT_CALL;
+    args.addr = 0;
+    syscall(args);
 }
 
 int main()
@@ -112,16 +104,17 @@ int main()
     int temp;
     // Testing printing functions
     prints("Testing Prints\n");
-    prints("Hello World\n");
-    printi(10);
-    prints("\n");
+    //prints("Hello World\n");
+    //printi(10);
+    //prints("\n");
 
     // Testing get functions
-    gets(buff);
-    prints(buff);
-    temp = geti();
-    printi(temp);
+    //gets(buff);
+    //prints(buff);
+    //temp = geti();
     //printi(temp);
+
+    //halt();
 
     return 0;
 }
