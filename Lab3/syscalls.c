@@ -5,20 +5,13 @@
 
 #define PRINTS_CALL 1
 #define EXIT_CALL   2
-#define GETS_CALL   5
+#define GETS_CALL   6
 #define GETI_CALL   7
 
 typedef struct 
 {
     int op;
     int addr;
-    int status;
-} io_blk_t;
-
-typedef struct 
-{
-    int op;
-    int * addr;
     int status;
 } args_t;
 
@@ -63,7 +56,6 @@ int syscall(args_t * args)
     // Validate the arguments
     if(args->op == PRINTS_CALL)
     {
-        //asm("TRAP");
         asm("OUTS", args->addr);
     }
     else if(args->op == EXIT_CALL)
@@ -72,15 +64,20 @@ int syscall(args_t * args)
     }
     else if(args->op == GETS_CALL)
     {
-        asm("INP", &args);
-        while(args->op >= 0 );
+        asm("INP", args);
+        while(args->op >= 0);
     }
     else if(args->op == GETI_CALL)
     {
-        asm("INP", &args);
+        asm("INP", args);
         while(args->op >= 0);
     }
-    else { asm("OUTS", "Invalid operator"); }
+    else 
+    { 
+        asm("OUTS", "Invalid operator"); 
+        printi(args->op);
+        asm("OUTS", "\n");
+    }
 
     // Prepare return
     return 0;
@@ -111,12 +108,19 @@ int halt()
 
 int main()
 {
-    char * buff;
+    char buff[30];
     int temp;
+    // Testing printing functions
     prints("Testing Prints\n");
     prints("Hello World\n");
     printi(10);
     prints("\n");
+
+    // Testing get functions
+    gets(buff);
+    prints(buff);
+    temp = geti();
+    printi(temp);
     //printi(temp);
 
     return 0;
@@ -146,24 +150,6 @@ int printi(int val)
     return 0;
 }
 
-// Gets an integer from STDIN
-//int geti()
-//{
-//    args_t args;
-//    args.op = GETI_CALL;
-//    args.addr = 0;
-
-    //syscall(&args);
-//    printi(args.op);
-//    prints("\n");
-//    printi(args.addr);
-//    prints("\n");
-//    printi(args.status);
-//    prints("\n");
-    
-//    return args.addr;
-//}
-
 // Gets a string from STDIN
 int gets(char *buff)
 {
@@ -172,7 +158,19 @@ int gets(char *buff)
     args.addr = buff;
 
     syscall(&args);
-    buff = args.addr;           // This one works.
-    //strcpy(buff, args.addr);  // Doesn't copy the last character correctly
     return 0;
+}
+
+
+// Gets an integer from STDIN
+int geti()
+{
+    int * temp;
+    args_t args;
+    args.op = GETI_CALL;
+    args.addr = temp;
+
+    syscall(&args);
+    
+    return *temp;
 }
