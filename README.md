@@ -23,8 +23,9 @@ For example: printf("Hello World") returns the number of characters it printed. 
 if(printf("Hello world") <= 0)
 {
   // Error detected with printf
-  fprintf(STDERR, "Failed to print to STDOUT"); // Of course this could error too. 
-  exit(4);
+  if( fprintf(STDERR, "Failed to print to STDOUT"); <= 0)
+    exit(5); // fprintf failed. 
+  exit(4);   // printf failed.
 }
 ```
 
