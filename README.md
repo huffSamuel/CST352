@@ -1,4 +1,4 @@
-This is my repository for code for CST351 - Operating Systems taken at Oregon Institute of Technology.
+This is my repository for code for CST352 - Operating Systems taken at Oregon Institute of Technology.
 
 ## Class Description:
 Issues in Operating Systems Design. Topics include: 
@@ -32,3 +32,4 @@ if(printf("Hello world") <= 0)
 - Lab 1: Pipes and Processes
 - Lab 2: Memory Allocation
 - Lab 3: System Calls in custom STACKL environment
+- Lab 4: Threads
