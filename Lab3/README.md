@@ -18,12 +18,17 @@ Stackl is a stack-based virtual environment developed for teaching students abou
 
 Stackl and its documentation can be obtained [here](https://github.com/philip-w-howard/stackl)
 
+Implementing this lab using Stackl rather than a simulated environment results in +10 points on the lab.
+
 ## Grade and Notes
-83/100
-* The proper validation in syscall() is args>=0 && <(lp - bp). The addresses are relative to the bp. You should also validate the pointer stored in the args_t.
+
+Lab Score: 83/100
+
+* The proper validation in syscall() is `args>=0 && <(lp - bp)`. The addresses are relative to the bp. You should also validate the pointer stored in the args_t.
 * -7 Your userlib functions always return zero instead of returning a meaningful status of the operation.
 * -5 in systrap() you dereference args before converting it to a system address. This will cause a memory overwrite somewhere in system space.
 * -10 You did not validate the args to systrap
 * -2 your trap routine should not print error messages. Instead, it should report the failure back to userland.
 * +10 for doing the stackl version.
-﻿﻿﻿﻿﻿
+
+No Paranoia Score
