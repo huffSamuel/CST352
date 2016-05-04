@@ -3,6 +3,7 @@
 * Email:         phil.howard@oit.edu
 * Filename:      memory.c
 * Date Created:  2016-04-26
+* Modified:      Samuel Huff 5/1/16
 **************************************************************/
 /*************************************************************
  * Lab/Assignment: CST 352 Lab 4: Threading Part 1
@@ -27,6 +28,7 @@
 #include "list.h"
 
 #define DEFAULT_COUNT 1000
+#define DEFAULT_THREADS 1
 
 //******************************************************************
 // struct that holds parameters sent to a thread
@@ -34,6 +36,7 @@ typedef struct
 {
     list_t *list;       // The list to be operated on
     int count;          // The number of items the thread is to add to list
+    int thread;         // Thread number
 } params_t;
 
 /********************************************************************** 
@@ -221,26 +224,54 @@ void *perform_queue_operations(void *p)
 int main(int argc, char **argv)
 {
     int count;
+    int i;                  // Loop counter
+    int threads;            // Number of threads
+    int err;                // Error return value 
     list_t *list;
     params_t params;
 
-    if (argc > 1)
+    if (argc > 2)
+    {
         count = atoi(argv[1]);
+        threads = atoi(argv[2]);
+    }
     else
+    {
         count = DEFAULT_COUNT;
+        threads = DEFAULT_THREADS;
+    }
 
-    if (count <= 0) count = DEFAULT_COUNT;
+    pthread_t tid[threads]; // Thread ID array
 
     printf("Count: %d\n", count);
+    printf("Threads: %d\n", threads);
 
     // Initialize the list
     list = list_init();
 
     // Initialize the parameter struct
-    params.list = list;
-    params.count = count;
+    
+    for(i = 0; i < threads; ++i)
+    {
+        // Setup parameters
+        params.list = list;
+        params.count = count;
+        params.thread = i;
 
-    perform_queue_operations(&params);
+        // Create the thread
+        err = pthread_create( &tid[i], NULL, perform_queue_operations, &params );
+        if(err != 0)
+        {
+            printf("Unable to create thread %d", err);
+        }
+    }
+
+    for(i = 0; i < threads; ++i)
+    {
+        pthread_join(tid[i], NULL);
+    }
+
+    //perform_queue_operations(&params);
 
     if (validate_queue(list, count, 1))
         printf("Order OK\n");
