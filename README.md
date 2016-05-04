@@ -1,4 +1,4 @@
-This is my repository for code for CST351 - Operating Systems taken at Oregon Institute of Technology.
+This is my repository for code for CST352 - Operating Systems taken at Oregon Institute of Technology.
 
 ## Class Description:
 Issues in Operating Systems Design. Topics include: 
@@ -23,8 +23,9 @@ For example: printf("Hello World") returns the number of characters it printed. 
 if(printf("Hello world") <= 0)
 {
   // Error detected with printf
-  fprintf(STDERR, "Failed to print to STDOUT"); // Of course this could error too. 
-  exit(4);
+  if( fprintf(STDERR, "Failed to print to STDOUT"); <= 0)
+    exit(5); // fprintf failed. 
+  exit(4);   // printf failed.
 }
 ```
 
@@ -32,3 +33,4 @@ if(printf("Hello world") <= 0)
 - Lab 1: Pipes and Processes
 - Lab 2: Memory Allocation
 - Lab 3: System Calls in custom STACKL environment
+- Lab 4: Threads
