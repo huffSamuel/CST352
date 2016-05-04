@@ -229,7 +229,7 @@ int main(int argc, char **argv)
     int threads;            // Number of threads
     int err;                // Error return value 
     list_t *list;
-    params_t params;
+    params_t * params;      // List of parameters
 
     if (argc > 2)
     {
@@ -247,24 +247,25 @@ int main(int argc, char **argv)
         threads = DEFAULT_THREADS; 
     }
 
-    pthread_t tid[threads]; // Thread ID array
+    pthread_t tid[threads];     // Thread ID array
+    params = (params_t *)malloc(threads * sizeof(params_t));    // Init param list
 
     printf("Count: %d\n", count);
     printf("Threads: %d\n", threads);
 
     // Initialize the list
     list = list_init();
-
+    
     // Initialize the parameter struct
-    params.list = list;
-    params.count = (count / threads);
     for(i = 0; i < threads; i++)
     {
+        params[i].list = list;
         //params.count = (i+1 == (threads)) ? tempCount : (count / threads);
-        params.thread = i;
+        params[i].thread = i;
+        params[i].count = (count / threads);
 
         // Create the thread
-        err = pthread_create( &(tid[i]), NULL, perform_queue_operations, &params);
+        err = pthread_create( &(tid[i]), NULL, perform_queue_operations, &params[i]);
         if(err != 0)
         {
             printf("Unable to create thread %d", err);
@@ -280,6 +281,8 @@ int main(int argc, char **argv)
         printf("Order OK\n");
     else
         printf("Test failed\n");
+
+    free(params);
 
     return 0;
 }
