@@ -1,10 +1,11 @@
 /*************************************************************
 * Author:        Philip Howard
 * Email:         phil.howard@oit.edu
-* Filename:      memory.c
+* Filename:      list.h
 * Date Created:  2016-04-26
+* Modified:      Samuel Huff 5/1/2016
 **************************************************************/
-
+#include <pthread.h>
 //*******************************************************
 // Struct for elements in a singly linked list
 typedef struct list_item_s
@@ -20,6 +21,7 @@ typedef struct list_s
     int count;                  // number of items in the list
     struct list_item_s *first;  // pointer to first element in list
     struct list_item_s *last;   // pointer to last element in list
+    pthread_mutex_t lock;       // Thread safe lock
 } list_t;
 
 //*******************************************************

@@ -236,10 +236,15 @@ int main(int argc, char **argv)
         count = atoi(argv[1]);
         threads = atoi(argv[2]);
     }
+    else if(argc > 1)
+    {
+        count = atoi(argv[1]);
+        threads = DEFAULT_THREADS;
+    }
     else
     {
         count = DEFAULT_COUNT;
-        threads = DEFAULT_THREADS;
+        threads = DEFAULT_THREADS; 
     }
 
     pthread_t tid[threads]; // Thread ID array
@@ -257,7 +262,8 @@ int main(int argc, char **argv)
     {
         // Setup parameters
         params.list = list;
-        params.count = (i+1 == (threads)) ? tempCount : (count / threads);
+        //params.count = (i+1 == (threads)) ? tempCount : (count / threads);
+        params.count = (count / threads);
         tempCount -= params.count;
         params.thread = i;
 
@@ -276,9 +282,7 @@ int main(int argc, char **argv)
         pthread_join(tid[i], NULL);
     }
 
-    //perform_queue_operations(&params);
-
-    if (validate_queue(list, count, 1))
+    if (validate_queue(list, count, threads))
         printf("Order OK\n");
     else
         printf("Test failed\n");
