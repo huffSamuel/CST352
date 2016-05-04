@@ -5,7 +5,7 @@
 # Date Created:  2016-04-13
 #*************************************************************
 
-COPTS = -Wall -g -O0 -c -pthread
+COPTS = -Wall -std=gnu99 -g -O0 -c -pthread
 
 OBJS = list.o \
        mytest.o \

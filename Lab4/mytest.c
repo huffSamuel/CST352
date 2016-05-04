@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <pthread.h>
+#include <unistd.h>
 
 #include "list.h"
 
@@ -224,7 +225,6 @@ void *perform_queue_operations(void *p)
 int main(int argc, char **argv)
 {
     int count;
-    int tempCount;
     int i;                  // Loop counter
     int threads;            // Number of threads
     int err;                // Error return value 
@@ -256,21 +256,15 @@ int main(int argc, char **argv)
     list = list_init();
 
     // Initialize the parameter struct
-    
-    tempCount = count;
-    for(i = 0; i < threads; ++i)
+    params.list = list;
+    params.count = (count / threads);
+    for(i = 0; i < threads; i++)
     {
-        // Setup parameters
-        params.list = list;
         //params.count = (i+1 == (threads)) ? tempCount : (count / threads);
-        params.count = (count / threads);
-        tempCount -= params.count;
         params.thread = i;
 
-        //printf("Count for thread %d is %d\n", i, params.count);
-
         // Create the thread
-        err = pthread_create( &tid[i], NULL, perform_queue_operations, &params );
+        err = pthread_create( &(tid[i]), NULL, perform_queue_operations, &params);
         if(err != 0)
         {
             printf("Unable to create thread %d", err);

@@ -25,14 +25,11 @@ list_t *list_init()
 {
     list_t *list = (list_t *)malloc(sizeof(list_t));
     assert(list != NULL);
-    if(pthread_mutex_init(&list->lock, NULL) != 0)
-    {
-        //printf("Mutex init failed\n");
-        return NULL;
-    }
     list->count = 0;
     list->first = NULL;
     list->last = NULL;
+
+    pthread_mutex_init(&(list->lock), NULL);
 
     return list;
 }
@@ -49,7 +46,8 @@ list_t *list_init()
 ************************************************************************/
 void list_sorted_insert(list_t *list, int value)
 {
-    pthread_mutex_lock(&list->lock);
+
+    pthread_mutex_lock(&(list->lock));
     list_item_t *item;
 
     assert(list != NULL);
@@ -58,7 +56,8 @@ void list_sorted_insert(list_t *list, int value)
     assert(new_item != NULL);
 
     new_item->value = value;
-    
+
+
     if (list->first == NULL || value < list->first->value) 
     {
         // special case inserting at beginning of list
@@ -83,7 +82,7 @@ void list_sorted_insert(list_t *list, int value)
     }
 
     list->count++;
-    pthread_mutex_unlock(&list->lock);
+    pthread_mutex_unlock(&(list->lock));
 }
 /********************************************************************** 
 * Purpose: Adds a new element to the front of the list
@@ -97,7 +96,8 @@ void list_sorted_insert(list_t *list, int value)
 ************************************************************************/
 void list_push(list_t *list, int value)
 {
-    pthread_mutex_lock(&list->lock);
+    pthread_mutex_lock(&(list->lock));
+
     list_item_t *item;
 
     assert(list != NULL);
@@ -115,7 +115,7 @@ void list_push(list_t *list, int value)
     if (list->last == NULL) list->last = new_item;
 
     list->count++;
-    pthread_mutex_unlock(&list->lock);
+    pthread_mutex_unlock(&(list->lock));
 }
 /********************************************************************** 
 * Purpose: place an item at the end of the list
@@ -129,7 +129,7 @@ void list_push(list_t *list, int value)
 ************************************************************************/
 void list_push_end(list_t *list, int value)
 {
-    pthread_mutex_lock(&list->lock);
+    pthread_mutex_lock(&(list->lock));
     assert(list != NULL);
 
     list_item_t *item = (list_item_t *)malloc(sizeof(list_item_t));
@@ -150,7 +150,7 @@ void list_push_end(list_t *list, int value)
     }
 
     list->count++;
-    pthread_mutex_unlock(&list->lock);
+    pthread_mutex_unlock(&(list->lock));
 }
 /********************************************************************** 
 * Purpose: Remove an item from the front of the list
@@ -165,14 +165,13 @@ void list_push_end(list_t *list, int value)
 ************************************************************************/
 int list_pop(list_t *list)
 {
-    pthread_mutex_lock(&list->lock);
-    
+    pthread_mutex_lock(&(list->lock));
     int value;
     list_item_t *item;
 
     if (list->first == NULL)
     { 
-        pthread_mutex_unlock(&list->lock);
+        pthread_mutex_unlock(&(list->lock));
         return 0;
     }
 
@@ -185,6 +184,6 @@ int list_pop(list_t *list)
 
     free(item);
 
-    pthread_mutex_unlock(&list->lock);
+    pthread_mutex_unlock(&(list->lock));
     return value;
 }
