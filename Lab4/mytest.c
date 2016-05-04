@@ -224,6 +224,7 @@ void *perform_queue_operations(void *p)
 int main(int argc, char **argv)
 {
     int count;
+    int tempCount;
     int i;                  // Loop counter
     int threads;            // Number of threads
     int err;                // Error return value 
@@ -251,12 +252,16 @@ int main(int argc, char **argv)
 
     // Initialize the parameter struct
     
+    tempCount = count;
     for(i = 0; i < threads; ++i)
     {
         // Setup parameters
         params.list = list;
-        params.count = count;
+        params.count = (i+1 == (threads)) ? tempCount : (count / threads);
+        tempCount -= params.count;
         params.thread = i;
+
+        //printf("Count for thread %d is %d\n", i, params.count);
 
         // Create the thread
         err = pthread_create( &tid[i], NULL, perform_queue_operations, &params );
