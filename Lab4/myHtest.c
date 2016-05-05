@@ -226,7 +226,6 @@ void *perform_queue_operations(void *p)
 int main(int argc, char **argv)
 {
     int count;
-    int tempCount;
     int threads;                // Number of threads  
     int err;                    // Error return value 
     list_t *list;
@@ -250,7 +249,6 @@ int main(int argc, char **argv)
     }
     
     pthread_t tid[threads];     // Thread ID array
-    tempCount = count;              
     params = (params_t *)malloc(threads * sizeof(params_t));    // Init param list
 
     printf("Count: %d\n", count);
@@ -263,15 +261,14 @@ int main(int argc, char **argv)
     for(i = 0; i < threads; i++)
     {
         params[i].list = list;
-        //params[i].count = (i+1 == (threads)) ? tempCount : (count / threads);
-        tempCount -= params[i].count;
+        //params.count = (i+1 == (threads)) ? tempCount : (count / threads);
         params[i].thread = i;
         params[i].count = (count / threads);
 
         // Create the thread
         err = pthread_create( &(tid[i]), 
                               NULL, 
-                              perform_queue_operations, 
+                              perform_operations, 
                               &params[i]);
         if(err != 0)
         {
@@ -285,11 +282,22 @@ int main(int argc, char **argv)
         pthread_join(tid[i], NULL);
     }
 
-    if (validate_queue(list, count, threads))
+    if (validate_list(list, count))
         printf("Order OK\n");
     else
         printf("Test failed\n");
 
+    list_item_t * node = list->first;
+    list_item_t * temp;
+    while(node->next != NULL)
+    {
+        temp = node;
+        node = node->next;
+        free(temp);
+    }
+
+    free(node);
+    free(list);
     free(params);       // Free the params memory
 
     return 0;
