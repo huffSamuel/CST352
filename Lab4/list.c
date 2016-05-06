@@ -46,7 +46,6 @@ list_t *list_init()
 ************************************************************************/
 void list_sorted_insert(list_t *list, int value)
 {
-
     pthread_mutex_lock(&(list->lock));
     list_item_t *item;
 

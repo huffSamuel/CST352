@@ -47,8 +47,6 @@ list_t *list_init()
 ************************************************************************/
 void list_sorted_insert(list_t *list, int value)
 {
-    printf("Insert %d\n", value);
-    fflush(stdout);
     list_item_t *item;
 
     assert(list != NULL);
@@ -58,6 +56,7 @@ void list_sorted_insert(list_t *list, int value)
 
     new_item->value = value;
     new_item->next = NULL;
+    pthread_mutex_init(&(new_item->lock), NULL);
 
     // Lock list
     pthread_mutex_lock(&(list->lock));
@@ -66,10 +65,9 @@ void list_sorted_insert(list_t *list, int value)
     
     // List locked
     // List first NOT locked
-    if(list->count == 0)
+    if(list->count == 0)    // Insert into empty
     {
         pthread_mutex_lock(&(new_item->lock));
-        new_item->next = NULL;
         list->first = new_item;
         list->last = new_item;
         pthread_mutex_unlock(&(list->lock));
@@ -78,7 +76,7 @@ void list_sorted_insert(list_t *list, int value)
     
     // List->first is locked
     // List is locked
-    else if (value < list->first->value) 
+    else if (value < list->first->value) // Insert at front
     {
         pthread_mutex_lock(&(new_item->lock));
         new_item->next = list->first;
@@ -90,7 +88,7 @@ void list_sorted_insert(list_t *list, int value)
 
     // List->first is locked
     // List is locked
-    else if(list->count == 1)
+    else if(list->count == 1)   // Insert at end of 2 
     {
         pthread_mutex_lock(&(new_item->lock));
         list->first->next = new_item;
@@ -104,16 +102,15 @@ void list_sorted_insert(list_t *list, int value)
     // List is locked
     else
     {
+        // Should be good
         item = list->first;
-        if(list->count > 1)
-            pthread_mutex_lock(&(item->next->lock));
-
+        pthread_mutex_unlock(&(list->first->lock));
+        pthread_mutex_lock(&(item->lock));
         pthread_mutex_unlock(&(list->lock));
 
-        // Entering:
-        // List is unlocked
-        // List->first is locked
-        // list->first->next is locked
+        if(item->next != NULL) 
+            pthread_mutex_lock(&(item->next->lock));
+        //**********************************************************************
         while (item->next != NULL && item->next->value < value)
         {
             pthread_mutex_unlock(&(item->lock));
@@ -121,23 +118,23 @@ void list_sorted_insert(list_t *list, int value)
             if(item->next != NULL)
                 pthread_mutex_lock(&(item->next->lock));
         }
+        // item, item->next
 
-        // item is locked
-        // item->next is locked
-        pthread_mutex_lock(&(new_item->lock));  // Lock new
+        pthread_mutex_lock(&(new_item->lock));
         new_item->next = item->next;
         item->next = new_item;
-        if(new_item->next != NULL)
-            pthread_mutex_unlock(&(new_item->next->lock)); // Unlock item->next
-
-        if (item->next == NULL) 
+        pthread_mutex_unlock(&(item->lock));
+       
+        if (new_item->next == NULL) 
         {
-            pthread_mutex_lock(&(list->lock));
             list->last = new_item;
-            pthread_mutex_unlock(&(list->lock));
+            pthread_mutex_unlock(&(new_item->lock));
         }
-        pthread_mutex_unlock(&(new_item->lock));    // unlock new
-        pthread_mutex_unlock(&(item->lock));        // Unlock item
+        else
+        {
+            pthread_mutex_unlock(&(new_item->next->lock));
+            pthread_mutex_unlock(&(new_item->lock));
+        }
     }
 
     pthread_mutex_lock(&(list->lock));
@@ -156,8 +153,6 @@ void list_sorted_insert(list_t *list, int value)
 ************************************************************************/
 void list_push(list_t *list, int value)
 {
-    //pthread_mutex_lock(&(list->lock));
-
     list_item_t *item;
 
     assert(list != NULL);
@@ -167,6 +162,7 @@ void list_push(list_t *list, int value)
 
     new_item->value = value;
     new_item->next = NULL;
+    pthread_mutex_init(&(new_item->lock));
 
     // insert at beginning
     new_item->next = list->first;
@@ -174,8 +170,9 @@ void list_push(list_t *list, int value)
 
     if (list->last == NULL) list->last = new_item;
 
+
     list->count++;
-    //pthread_mutex_unlock(&(list->lock));
+    pthread_mutex_unlock(&(list->lock));
 }
 /********************************************************************** 
 * Purpose: place an item at the end of the list
@@ -189,7 +186,6 @@ void list_push(list_t *list, int value)
 ************************************************************************/
 void list_push_end(list_t *list, int value)
 {
-    //pthread_mutex_lock(&(list->lock));
     assert(list != NULL);
 
     list_item_t *item = (list_item_t *)malloc(sizeof(list_item_t));
@@ -198,6 +194,7 @@ void list_push_end(list_t *list, int value)
     item->value = value;
     item->next = NULL;
 
+    pthread_mutex_lock(&(list->lock));
     if (list->last == NULL)
     {
         list->first = item;
@@ -210,7 +207,7 @@ void list_push_end(list_t *list, int value)
     }
 
     list->count++;
-    //pthread_mutex_unlock(&(list->lock));
+    pthread_mutex_unlock(&(list->lock));
 }
 /********************************************************************** 
 * Purpose: Remove an item from the front of the list
@@ -225,13 +222,12 @@ void list_push_end(list_t *list, int value)
 ************************************************************************/
 int list_pop(list_t *list)
 {
-    //pthread_mutex_lock(&(list->lock));
     int value;
     list_item_t *item;
 
+    pthread_mutex_lock(&(list->lock));
     if (list->first == NULL)
     { 
-        //pthread_mutex_unlock(&(list->lock));
         return 0;
     }
 
@@ -241,9 +237,9 @@ int list_pop(list_t *list)
     list->first = item->next;
     if (list->first == NULL) list->last = NULL;
     list->count--;
+    pthread_mutex_unlock(&(list->lock));
 
     free(item);
 
-    //pthread_mutex_unlock(&(list->lock));
     return value;
 }
