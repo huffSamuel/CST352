@@ -19,6 +19,7 @@ clean:
 	rm -rf mytest
 	rm -rf myHtest
 	rm -rf $(OBJS)
+	rm -rf $(OBJS2)
 
 .c.o:
 	gcc $(COPTS) $? -o $@
