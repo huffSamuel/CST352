@@ -5,17 +5,13 @@
  * Modifications: 
  **************************************************************/
 #include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <ctype.h>
+#include <pthread.h>
 
 #include "prod_cons.h"
-
-// The actual definition of the queue type.
-// NOTE: This is pseudo-code. You will have to make a real definition
-typedef struct
-{
-    int item1;
-    int item2;
-    int closed;
-} my_queue_t;
+#include "queue.h"
 
 /********************************************************************** 
  * Purpose: This function initializes a queue. 
@@ -32,8 +28,7 @@ typedef struct
  ************************************************************************/
 queue_t Q_Init()
 {
-    my_queue_t *queue = malloc(sizeof(my_queue_t));
-    queue->closed = 0;
+    my_queue_t *queue = my_q_init();
     return (queue_t)queue;
 }
 
@@ -71,9 +66,7 @@ int Q_Destroy(queue_t queue)
  ************************************************************************/
 int Q_Close(queue_t q)
 {
-    my_queue_t *queue = (my_queue_t *)q;
-    queue->closed = 1;
-    return 0;
+    return my_q_close((my_queue_t*)q);
 }
 
 /********************************************************************** 
@@ -88,7 +81,7 @@ int Q_Close(queue_t q)
  ************************************************************************/
 int Q_Enqueue(queue_t queue, char *buffer)
 {
-    return 1;
+    return my_q_enqueue((my_queue_t *)queue, buffer);
 }
 
 /********************************************************************** 
@@ -105,7 +98,7 @@ int Q_Enqueue(queue_t queue, char *buffer)
  ************************************************************************/
 char *Q_Dequeue(queue_t queue)
 {
-    return NULL;
+    return my_q_dequeue((my_queue_t *)queue);
 }
 
 /********************************************************************** 
@@ -122,7 +115,7 @@ char *Q_Dequeue(queue_t queue)
  ************************************************************************/
 int Q_Is_Open(queue_t queue)
 {
-    return 0;
+    return my_q_is_open((my_queue_t*)queue);
 }
 
 /********************************************************************** 
@@ -136,8 +129,33 @@ int Q_Is_Open(queue_t queue)
  * Postcondition: 
  *      The file has been read and the lines are places into the queue
  ************************************************************************/
-void *producer(queue_t queue, char *filename)
+void *producer(void * p)
 {
+    p_params_t * params = (p_params_t *)p;
+    queue_t queue = params->queue;
+    char * filename = params->filename;
+    FILE *fp = NULL;
+    fp = fopen(filename, "r");
+    char * buffer = NULL;
+    char * pos = NULL;
+    int i = 0;
+
+    buffer = (char *)malloc(256*sizeof(char));
+    while(fgets(buffer, 256, fp))
+    {
+        for(i = 0; i < strlen(buffer); ++i)
+        {
+            if(!isspace(buffer[i])) break;
+        }
+        if(i < strlen(buffer))
+        {
+            if ((pos=strchr(buffer, '\n')) != NULL)
+                *pos = '\0';
+            Q_Enqueue(queue, buffer);
+            buffer = (char *)malloc(256*sizeof(char));
+        }
+    }
+    fclose(fp);
     return NULL;
 }
 
@@ -152,8 +170,23 @@ void *producer(queue_t queue, char *filename)
  * Postcondition: 
  *      The file has been closed and emptied.
  ************************************************************************/
-void *consumer(queue_t queue)
+void *consumer(void * p)
 {
+    c_params_t * params = (c_params_t*)p;
+    queue_t queue = params->queue;
+
+    pthread_t tid;
+    tid = pthread_self();
+    char * value;
+    while(Q_Is_Open(queue) != 1)
+    {
+        value = Q_Dequeue(queue);
+        if(value != NULL)
+        {
+            printf("%d %s\n", (int)tid, value);
+        }
+    }
+
     return NULL;
 }
 

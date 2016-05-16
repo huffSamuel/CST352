@@ -7,6 +7,17 @@
 
 typedef void * queue_t;
 
+typedef struct 
+{
+    queue_t queue;
+    char * filename;
+} p_params_t;
+
+typedef struct 
+{
+    queue_t queue;
+} c_params_t;
+
 /********************************************************************** 
  * Purpose: This function initializes a queue. 
  * It returns an opaque pointer to the queue. The queue must be destroyed when
@@ -104,7 +115,7 @@ int Q_Is_Open(queue_t queue);
  * Postcondition: 
  *      The file has been read and the lines are places into the queue
  ************************************************************************/
-void *producer(queue_t queue, char *filename);
+void *producer(void * p);
 
 /********************************************************************** 
  * Purpose: Acts as a consumer that reads from a queue and writes the lines 
