@@ -1,5 +1,13 @@
 #include "queue.h"
-
+/********************************************************************** 
+ * Purpose: Initialize a queue for consumer code use. 
+ *
+ * Precondition: 
+ *     None.
+ *
+ * Postcondition: 
+ *      Returns a queue with initialized values.
+ ************************************************************************/
 my_queue_t * my_q_init()
 {
     my_queue_t * queue = (my_queue_t *)malloc(sizeof(my_queue_t));
@@ -8,12 +16,21 @@ my_queue_t * my_q_init()
     queue->first = NULL;
     queue->last = NULL;
     queue->closed = 0;
-    pthread_mutex_init(&(queue->lock), NULL);
-    //sem_init(&(queue->mutex), 0, 1);
-    //sem_init(&(queue->items), 0, 1);
+    
+    queue->mutex = make_semaphore(1);
     return queue;
 }
-
+/********************************************************************** 
+ * Purpose: Adds a node to the end of the queue.
+ *
+ * Precondition: 
+ *     queue is an initialized queue.
+ *     value is the string value for the node.
+ *
+ * Postcondition: 
+ *      The node is added to the end of the queue. Returns a 0 on success
+ *      and a non-zero value on failure.
+ ************************************************************************/
 int my_q_enqueue(my_queue_t * queue, char * value)
 {
     if(queue == NULL) return 1;
@@ -22,8 +39,8 @@ int my_q_enqueue(my_queue_t * queue, char * value)
     item->next = NULL;
 
     if(item == NULL) return 2;
-    pthread_mutex_lock(&(queue->lock));
-    //sem_wait(&queue->mutex);
+    
+    semaphore_wait(queue->mutex);
 
     if(queue->last == NULL)
     {
@@ -38,19 +55,27 @@ int my_q_enqueue(my_queue_t * queue, char * value)
 
     queue->count++;
     
-    //sem_post(&queue->mutex);
-    pthread_mutex_unlock(&(queue->lock));
+    semaphore_post(queue->mutex);
 
     return 0;
 }
-
+/********************************************************************** 
+ * Purpose: Removes an element from the front of the queue.
+ *
+ * Precondition: 
+ *     queue is an initialized queue.
+ *
+ * Postcondition: 
+ *      returns the string of the first node. If the queue is empty returns
+ *      null.
+ ************************************************************************/
 char * my_q_dequeue(my_queue_t * queue)
 {
     char * value;
     node_t * item;
 
-    pthread_mutex_lock(&(queue->lock));
-    //sem_wait(&queue->mutex);
+    
+    semaphore_wait(queue->mutex);
 
     if(queue->first != NULL)
     {
@@ -66,36 +91,106 @@ char * my_q_dequeue(my_queue_t * queue)
     else
         value = NULL;
 
-    //sem_wait(&queue->mutex);
-    pthread_mutex_unlock(&(queue->lock));
+    semaphore_post(queue->mutex);
+    
     return value;
 }
-
+/********************************************************************** 
+ * Purpose: Dealocates memory associated with the queue.
+ *
+ * Precondition: 
+ *     queue is an initialized queue.
+ *
+ * Postcondition: 
+ *      Elements of the queue are freed.
+ ************************************************************************/
 int my_q_cleanup(my_queue_t * queue)
 {
-    pthread_mutex_destroy(&(queue->lock));
+    free(queue->mutex);
     free(queue);
     return 0;
 }
-
+/********************************************************************** 
+ * Purpose: Sets a queue as closed.
+ *
+ * Precondition: 
+ *     Queue is an initialized queue.
+ *
+ * Postcondition: 
+ *      Returns 0 if the queue is successfully marked as closed.
+ ************************************************************************/
 int my_q_close(my_queue_t * queue)
 {
-    //sem_wait(&queue->mutex);
-    pthread_mutex_lock(&(queue->lock));
+    if(semaphore_wait(queue->mutex) != 0) return 1;
     queue->closed = 1;
-    pthread_mutex_unlock(&(queue->lock));
-    //sem_post(&queue->mutex);
+    if(semaphore_post(queue->mutex) != 0) return 1;
+
     return 0;
 }
-
+/********************************************************************** 
+ * Purpose: Checks if a queue is currently open.
+ *
+ * Precondition: 
+ *     Queue is a valid queue.
+ *
+ * Postcondition: 
+ *      Returns 1 if the queue is closed and empty. Returns 0 otherwise.
+ ************************************************************************/
 int my_q_is_open(my_queue_t * queue)
 {
     int value = 0;
-    pthread_mutex_lock(&(queue->lock));
-    //sem_wait(&queue->mutex);
+    
+    if( semaphore_wait(queue->mutex) != 0) return -1;
+
     if(queue->closed == 1 && queue->count == 0)
         value = 1;
-    pthread_mutex_unlock(&(queue->lock));
-    //sem_post(&queue->mutex);
+    
+    semaphore_post(queue->mutex);
     return value;
+}
+/********************************************************************** 
+ * Purpose: Initializes a semaphore.
+ *
+ * Precondition: 
+ *     Value is the initial value of the semaphore.
+ *
+ * Postcondition: 
+ *      The returned semaphore pointer is initialized.
+ ************************************************************************/
+sem_t * make_semaphore(int value)
+{
+    sem_t * sem = (sem_t*)malloc(sizeof(sem_t));
+    int err = sem_init(sem, 0, value);
+    if(err != 0) return NULL;
+    return sem;
+}
+/********************************************************************** 
+ * Purpose: Waits for a semaphore.
+ *
+ * Precondition: 
+ *     Sem is an initialized semaphore.
+ *
+ * Postcondition: 
+ *      Semaphore has been acquired.
+ ************************************************************************/
+int semaphore_wait(sem_t *sem)
+{
+    int err = sem_wait(sem);
+    if(err != 0) return 1;
+    return 0;
+}
+/********************************************************************** 
+ * Purpose: Posts that a thread is finished with semaphore-locked data.
+ *
+ * Precondition: 
+ *     Sem is an initialized semaphore
+ *
+ * Postcondition: 
+ *      Semaphore is released by the thread.
+ ************************************************************************/
+int semaphore_post(sem_t *sem)
+{
+    int err = sem_post(sem);
+    if(err != 0) return 1;
+    return 0;
 }

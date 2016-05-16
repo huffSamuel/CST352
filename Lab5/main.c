@@ -2,7 +2,7 @@
  * Author:        Philip Howard
  * Filename:      prod_cons.h
  * Date Created:  5/4/2016
- * Modifications: 
+ * Modifications: 5/15/2016 Samuel Huf
  **************************************************************
  *
  * Lab/Assignment: Lab 5 - Producer Consumer

@@ -162,7 +162,7 @@ void list_push(list_t *list, int value)
 
     new_item->value = value;
     new_item->next = NULL;
-    pthread_mutex_init(&(new_item->lock));
+    pthread_mutex_init(&(new_item->lock), NULL);
 
     // insert at beginning
     new_item->next = list->first;

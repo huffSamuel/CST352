@@ -135,11 +135,14 @@ void *producer(void * p)
     char * filename = params->filename;
     FILE *fp = NULL;
     fp = fopen(filename, "r");
+    if(fp == NULL) error("failed to open file");
     char * buffer = NULL;
     char * pos = NULL;
     int i = 0;
 
     buffer = (char *)malloc(256*sizeof(char));
+    if(buffer == NULL) error("memory allocation failed");
+
     while(fgets(buffer, 256, fp))
     {
         for(i = 0; i < strlen(buffer); ++i)
@@ -150,8 +153,9 @@ void *producer(void * p)
         {
             if ((pos=strchr(buffer, '\n')) != NULL)
                 *pos = '\0';
-            Q_Enqueue(queue, buffer);
+            if(Q_Enqueue(queue, buffer) != 0) error("Enqueue failed");
             buffer = (char *)malloc(256*sizeof(char));
+            if(buffer == NULL) error("memory allocation failed");
         }
     }
     free(buffer);
@@ -183,7 +187,7 @@ void *consumer(void * p)
         value = Q_Dequeue(queue);
         if(value != NULL)
         {
-            printf("%d %s\n", (int)tid, value);
+            printf("%u %s\n", (unsigned)tid, value);
             free(value);
         }
     }
@@ -191,3 +195,9 @@ void *consumer(void * p)
     return NULL;
 }
 
+void error(char * msg)
+{
+    if(fprintf(stderr, "Error: %s\n", msg) != strlen(msg))
+        exit(1);
+    exit(2);
+}

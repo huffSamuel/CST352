@@ -130,3 +130,14 @@ void *producer(void * p);
  ************************************************************************/
 void *consumer(queue_t queue);
 
+/********************************************************************** 
+ * Purpose: Prints an error message to stderr and verifies correct output.
+ *
+ * Precondition: 
+ *     Msg is the error message.
+ *
+ * Postcondition: 
+ *      Msg is printed to stderr. If fprintf fails exits the program with 
+ *      error code 1.
+ ************************************************************************/
+void error(char * msg);
