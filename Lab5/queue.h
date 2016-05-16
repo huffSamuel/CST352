@@ -1,6 +1,8 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <semaphore.h>
+#include <string.h>
 
 typedef struct node_s
 {
@@ -14,6 +16,8 @@ typedef struct
     struct node_s * first;
     struct node_s * last;
     pthread_mutex_t lock;
+    //sem_t mutex;
+    //sem_t items;
     int closed;
 } my_queue_t;
 

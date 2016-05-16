@@ -9,7 +9,8 @@ my_queue_t * my_q_init()
     queue->last = NULL;
     queue->closed = 0;
     pthread_mutex_init(&(queue->lock), NULL);
-
+    //sem_init(&(queue->mutex), 0, 1);
+    //sem_init(&(queue->items), 0, 1);
     return queue;
 }
 
@@ -21,8 +22,8 @@ int my_q_enqueue(my_queue_t * queue, char * value)
     item->next = NULL;
 
     if(item == NULL) return 2;
-
     pthread_mutex_lock(&(queue->lock));
+    //sem_wait(&queue->mutex);
 
     if(queue->last == NULL)
     {
@@ -36,16 +37,21 @@ int my_q_enqueue(my_queue_t * queue, char * value)
     }
 
     queue->count++;
+    
+    //sem_post(&queue->mutex);
     pthread_mutex_unlock(&(queue->lock));
+
     return 0;
 }
 
 char * my_q_dequeue(my_queue_t * queue)
 {
-    char * value; 
+    char * value;
     node_t * item;
 
     pthread_mutex_lock(&(queue->lock));
+    //sem_wait(&queue->mutex);
+
     if(queue->first != NULL)
     {
         item = queue->first;
@@ -60,40 +66,36 @@ char * my_q_dequeue(my_queue_t * queue)
     else
         value = NULL;
 
+    //sem_wait(&queue->mutex);
     pthread_mutex_unlock(&(queue->lock));
     return value;
 }
 
 int my_q_cleanup(my_queue_t * queue)
 {
-    node_t * item;
-    while(queue->count > 0)
-    {
-        item = queue->first;
-        queue->first = item->next;
-        queue->count--;
-        free(item);
-    }
-
+    pthread_mutex_destroy(&(queue->lock));
     free(queue);
     return 0;
 }
 
 int my_q_close(my_queue_t * queue)
 {
+    //sem_wait(&queue->mutex);
     pthread_mutex_lock(&(queue->lock));
     queue->closed = 1;
     pthread_mutex_unlock(&(queue->lock));
+    //sem_post(&queue->mutex);
     return 0;
 }
 
 int my_q_is_open(my_queue_t * queue)
 {
     int value = 0;
-    pthread_mutex_lock(&(queue->lock)); 
+    pthread_mutex_lock(&(queue->lock));
+    //sem_wait(&queue->mutex);
     if(queue->closed == 1 && queue->count == 0)
         value = 1;
-
     pthread_mutex_unlock(&(queue->lock));
+    //sem_post(&queue->mutex);
     return value;
 }

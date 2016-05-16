@@ -27,9 +27,8 @@
  *
  ************************************************************************/
 queue_t Q_Init()
-{
-    my_queue_t *queue = my_q_init();
-    return (queue_t)queue;
+{   
+    return (queue_t)my_q_init();
 }
 
 /********************************************************************** 
@@ -49,7 +48,7 @@ queue_t Q_Init()
  ************************************************************************/
 int Q_Destroy(queue_t queue)
 {
-    return 1;
+    return my_q_cleanup((my_queue_t*) queue);
 }
 
 /********************************************************************** 
@@ -155,6 +154,7 @@ void *producer(void * p)
             buffer = (char *)malloc(256*sizeof(char));
         }
     }
+    free(buffer);
     fclose(fp);
     return NULL;
 }
@@ -184,6 +184,7 @@ void *consumer(void * p)
         if(value != NULL)
         {
             printf("%d %s\n", (int)tid, value);
+            free(value);
         }
     }
 
