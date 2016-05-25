@@ -10,9 +10,20 @@
 #include <semaphore.h>
 #include <string.h>
 
+//******************************************
+// Definition of Thread Control Block
+typedef struct thread_s
+{
+    unsigned long sp;                   // Stack pointer for thread
+    unsigned long fp;                   // Frame pointer for thread
+    long *stack;                        // ptr to block of memory used for stack
+    void *(*start_func)(void *arg);     // function to run in thread
+    void *arg;                          // arg to be passed to start_func
+} thread_t;
+
 typedef struct node_s
 {
-    char * value;
+    thread_t * value;
     struct node_s * next;
 } node_t;
 
@@ -45,7 +56,7 @@ my_queue_t * my_q_init();
  *      The node is added to the end of the queue. Returns a 0 on success
  *      and a non-zero value on failure.
  ************************************************************************/
-int my_q_enqueue(my_queue_t * queue, char * value);
+int my_q_enqueue(my_queue_t * queue, thread_t * value);
 /********************************************************************** 
  * Purpose: Removes an element from the front of the queue.
  *
@@ -56,7 +67,7 @@ int my_q_enqueue(my_queue_t * queue, char * value);
  *      returns the string of the first node. If the queue is empty returns
  *      null.
  ************************************************************************/
-char * my_q_dequeue(my_queue_t * queue);
+thread_t * my_q_dequeue(my_queue_t * queue);
 /********************************************************************** 
  * Purpose: Dealocates memory associated with the queue.
  *

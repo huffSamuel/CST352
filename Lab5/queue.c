@@ -1,3 +1,11 @@
+/*************************************************************
+* Author:        Samuel Huff
+* Email:         Samuel.Huff@oit.edu
+* Filename:      queue.c
+* Date Created:  5/12/2016
+* Modified:      
+**************************************************************/
+
 #include "queue.h"
 /********************************************************************** 
  * Purpose: Initialize a queue for consumer code use. 

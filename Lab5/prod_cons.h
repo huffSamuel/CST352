@@ -138,6 +138,6 @@ void *consumer(queue_t queue);
  *
  * Postcondition: 
  *      Msg is printed to stderr. If fprintf fails exits the program with 
- *      error code 1.
+ *      error code 1. It exits with error code 2 otherwise.
  ************************************************************************/
 void error(char * msg);
