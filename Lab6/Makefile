@@ -1,6 +1,7 @@
 COPTS=-Wall -g -c -O0 
 OBJS=sched.o \
 	 queue.o \
+	 list.o \
 
 EXES=test1 \
 	test2 \
