@@ -35,3 +35,4 @@ if(printf("Hello world") <= 0)
 - Lab 3: System Calls in custom STACKL environment
 - Lab 4: Threads
 - Lab 5: Producer/Consumer
+- Lab 6: User Mode Threads
