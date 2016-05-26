@@ -14,6 +14,7 @@
 // Definition of Thread Control Block
 typedef struct thread_s
 {
+    int status;
     unsigned long sp;                   // Stack pointer for thread
     unsigned long fp;                   // Frame pointer for thread
     long *stack;                        // ptr to block of memory used for stack

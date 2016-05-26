@@ -8,10 +8,13 @@
 #include "queue.h"
 // use a 1M stack
 #define STACK_SIZE  (1024*1024)
+#define ACTIVE 1
+#define EXITING 0
 
 
 // Pointer to currently running thread
 thread_t *Current_Thread;
+thread_t * Previous_Thread;
 my_queue_t * Ready_Queue;
 
 /**********************************************************************
@@ -61,6 +64,7 @@ void mythread_init()
     Current_Thread->stack = NULL;
     Current_Thread->start_func = NULL;
     Current_Thread->arg = NULL;
+    Current_Thread->status = ACTIVE;
 }
 // //*************************************
 // Function that gets called on thread startup. It calls the main thread
@@ -124,7 +128,7 @@ unsigned long mythread_create( void *(*func)(void *arg), void *arg)
     mem[STACK_SIZE-2] = (long)&mem[STACK_SIZE-2];       // frame ptr
     thread->fp = (long)&mem[STACK_SIZE-2];              // save FP
     thread->sp = (long)&mem[STACK_SIZE-2];              // save SP
-
+    thread->status = ACTIVE;
 
     my_q_enqueue(Ready_Queue, thread);
     // a call to yield will now run this thread
@@ -144,10 +148,11 @@ unsigned long mythread_create( void *(*func)(void *arg), void *arg)
  ************************************************************************/
 void mythread_yield()
 {
+    
     unsigned long reg;
 
     debug_print("Thread is yielding\n");
-    if(Current_Thread != NULL)
+    if(Current_Thread->status != EXITING)
     {
         // save FP, SP and queue current thread in ready queue
         __asm__ volatile("movq %%rbp, %0" : "=m" (reg) : :);
@@ -156,6 +161,7 @@ void mythread_yield()
         Current_Thread->sp = reg;
         my_q_enqueue(Ready_Queue, Current_Thread);
     }
+    else Previous_Thread = Current_Thread;
     // Get the next thread
     
     Current_Thread = my_q_dequeue(Ready_Queue);
@@ -168,6 +174,13 @@ void mythread_yield()
 
     reg = Current_Thread->fp;
     __asm__ volatile("movq %0, %%rbp" : : "m" (reg) :);
+
+    if(Previous_Thread != NULL && Previous_Thread->status == EXITING)
+    {
+        free(Previous_Thread->stack);
+        free(Previous_Thread);
+        Previous_Thread = NULL;
+    }
 
     // return to next thread
     return;
@@ -189,10 +202,8 @@ void mythread_exit(void *result)
 {
     debug_print("Thread is exiting\n");
     // clean up thread data structures
-    free(Current_Thread->stack);
-    free(Current_Thread);
+    Current_Thread->status = EXITING;
 
-    Current_Thread = NULL;
     mythread_yield();
 }
 /**********************************************************************
