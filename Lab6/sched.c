@@ -253,9 +253,11 @@ void mythread_join(unsigned long thread_id, void **result)
 {
     Current_Thread->state = WAITING;
     my_q_enqueue(Ready_Queue, Current_Thread);
+
+    /* Delay until child threads finish */
     while(((thread_t *)thread_id)->state == RUNNING) mythread_yield();
-    if(result != NULL)
-        result = Current_Thread->result;
+
+    if(result != NULL) *result = (((thread_t *)thread_id)->result);
     
     free(((thread_t *)thread_id)->stack);
     free((thread_t *)thread_id);
