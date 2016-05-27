@@ -18,7 +18,7 @@ Issues in Operating Systems Design. Topics include:
 ### Requirements for labs:
 All labs are required to be "paranoid" checked. This is where the student (programmer) assumes that underlying OS functions
 will fail, so all returns must be checked. 
-For example: printf("Hello World") returns the number of characters it printed. If it doesn't return a valid number we should handle the error.
+For example: `printf("Hello World")` returns the number of characters it printed. If it doesn't return a valid number we should handle the error.
 ```
 if(printf("Hello world") <= 0)
 {
@@ -36,3 +36,6 @@ if(printf("Hello world") <= 0)
 - Lab 4: Threads
 - Lab 5: Producer/Consumer
 - Lab 6: User Mode Threads
+- Lab 7: File System
+- Extra Credit Lab 1: Stackl Programmed I/O
+- Extra Credit Lab 2: User Mode Threads Part 2
