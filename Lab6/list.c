@@ -165,7 +165,7 @@ void list_push_end(list_t *list, thread_t * value)
 thread_t * list_pop(list_t *list)
 {
     pthread_mutex_lock(&(list->lock));
-    thread_t * value;
+    thread_t * value = NULL;
     list_item_t *item;
 
     if (list->first == NULL)

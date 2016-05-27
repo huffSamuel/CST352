@@ -177,7 +177,7 @@ void mythread_yield()
     if(Current_Thread->state == RUNNING)
         my_q_enqueue(Ready_Queue, Current_Thread);
         
-    else
+    else if(Current_Thread->state == DESTROY)
     {
         Previous_Thread = Current_Thread;
         list_remove(Thread_List, Previous_Thread);
@@ -226,7 +226,8 @@ void mythread_exit(void *result)
         Current_Thread->state = DESTROY;
     else
     {
-        Current_Thread->state = STOPPED;
+        Current_Thread->state = DESTROY;
+        Current_Thread->result = result;
         my_q_enqueue(Ready_Queue, (thread_t *)(Current_Thread->waiting));
     }
     mythread_yield();
@@ -246,8 +247,12 @@ void mythread_exit(void *result)
  *      The user's thread has finished
  *      The result of the user's thread is in result (if result != NULL)
  ************************************************************************/
+
+ //Join must do the destroy after thread_id exits
 void mythread_join(unsigned long thread_id, void **result)
 {
+    if(result != NULL)
+        result = Current_Thread->result;
     ((thread_t *)thread_id)->state = RUNNING;
     Current_Thread->state = WAITING;
 

@@ -16,6 +16,7 @@
 typedef struct thread_s
 {
     void * waiting;
+    void * result;
     int detached;
     int state;
     unsigned long sp;                   // Stack pointer for thread
