@@ -3,7 +3,9 @@
 * Email:         phil.howard@oit.edu
 * Filename:      list.c
 * Date Created:  2016-04-27
-* Modified:      Samuel Huff 5/1/2016
+* Modified:      Samuel Huff 
+                 5/26/2016
+                 contact@samueljhuff.com
 **************************************************************/
 
 #include <stdlib.h>
@@ -187,7 +189,72 @@ thread_t * list_pop(list_t *list)
     return value;
 }
 
+/********************************************************************** 
+* Purpose: Remove an item from the list
+*
+* Precondition: 
+*   list points to a well formed list
+*   value is the key to remove
+*
+* Postcondition: 
+*   The item with key value is removed and returned.
+*   If the list is empty, zero is returned.
+*
+************************************************************************/
 int list_remove(list_t * list, thread_t * value)
+{
+    pthread_mutex_lock(&(list->lock));
+
+    int found = 0;
+    list_item_t * first;
+    list_item_t * follow;
+
+    if(list->first == NULL)
+    {
+        pthread_mutex_unlock(&(list->lock));
+        return 0;
+    }
+
+    first = list->first;
+
+    /* Not really sure why this works here. It shouldn't.*/
+    while(first != NULL && !found)
+    {
+        follow = first;
+        first = first->next;
+        if(first == NULL)
+            break;
+        if(first->value == value)
+            found = 1;
+    }
+
+    if(found)
+    {
+        follow->next = first->next;
+        --list->count;
+        free(first);
+        if(list->first->next == NULL)
+            list->last = list->first;
+    }
+
+    pthread_mutex_unlock(&(list->lock));
+
+    return found;
+}
+
+/********************************************************************** 
+* Purpose: Check if an item is in the list
+*
+* Precondition: 
+*   list points to a well formed list
+*   value is the key to check
+*
+* Postcondition: 
+*   Returns non-zero if the list contains the value.
+*   If the list is empty, zero is returned.
+*
+************************************************************************/
+int list_contains(list_t * list, thread_t * value)
 {
     pthread_mutex_lock(&(list->lock));
 
@@ -205,19 +272,14 @@ int list_remove(list_t * list, thread_t * value)
 
     while(first != NULL && !found)
     {
+        if(first == NULL) break;
+        if(first->value == value)
+        {
+            found = 1;
+            break;
+        }
         follow = first;
         first = first->next;
-        if(first == NULL)
-            break;
-        if(first->value == value)
-            found = 1;
-    }
-
-    if(found)
-    {
-        follow->next = first->next;
-        --list->count;
-        free(first);
     }
 
     pthread_mutex_unlock(&(list->lock));

@@ -61,3 +61,4 @@ void list_push_end(list_t *list, thread_t * value);
 thread_t * list_pop(list_t *list);
 
 int list_remove(list_t * list, thread_t * value);
+int list_contains(list_t * list, thread_t * value);
