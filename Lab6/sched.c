@@ -226,7 +226,7 @@ void mythread_exit(void *result)
         Current_Thread->state = DESTROY;
     else
     {
-        Current_Thread->state = DESTROY;
+        Current_Thread->state = STOPPED;
         Current_Thread->result = result;
         my_q_enqueue(Ready_Queue, (thread_t *)(Current_Thread->waiting));
     }
@@ -251,10 +251,15 @@ void mythread_exit(void *result)
  //Join must do the destroy after thread_id exits
 void mythread_join(unsigned long thread_id, void **result)
 {
+    Current_Thread->state = WAITING;
+    my_q_enqueue(Ready_Queue, Current_Thread);
+    while(((thread_t *)thread_id)->state == RUNNING) mythread_yield();
     if(result != NULL)
         result = Current_Thread->result;
-    ((thread_t *)thread_id)->state = RUNNING;
-    Current_Thread->state = WAITING;
+    
+    free(((thread_t *)thread_id)->stack);
+    free((thread_t *)thread_id);
+    list_remove(Thread_List, (thread_t *)thread_id);
 
     mythread_yield();
 }
