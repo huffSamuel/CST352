@@ -6,21 +6,25 @@
 
 #include "sched.h"
 #include "queue.h"
+#include "list.h"
 // use a 1M stack
 #define STACK_SIZE  (1024*1024)
+
+#define DETACHED 0
+#define ATTACHED 1
+
 #define WAITING 0
 #define RUNNING 1
 #define EXITING 2
 #define DETACH 3
 #define STOPPED 4
-#define RUNNING 5
-
-
+#define DESTROY 5
 
 // Pointer to currently running thread
 thread_t *Current_Thread;
 my_queue_t * Ready_Queue;
 thread_t *Previous_Thread = NULL;
+list_t * Thread_List;
 
 /**********************************************************************
  * Purpose:  This function can be used for adding debug statements to your code.
@@ -58,6 +62,8 @@ void mythread_init()
     // Create TCB for whoever is initing me
     if(Ready_Queue == NULL)
         Ready_Queue = my_q_init();
+    if(Thread_List == NULL)
+        Thread_List = list_init();
 
     Current_Thread = (thread_t *)malloc(sizeof(thread_t));
     assert(Current_Thread != NULL);
@@ -70,6 +76,7 @@ void mythread_init()
     Current_Thread->start_func = NULL;
     Current_Thread->arg = NULL;
     Current_Thread->state = RUNNING;
+    Current_Thread->detached = ATTACHED;
 }
 // //*************************************
 // Function that gets called on thread startup. It calls the main thread
@@ -134,11 +141,15 @@ unsigned long mythread_create( void *(*func)(void *arg), void *arg)
     thread->fp = (long)&mem[STACK_SIZE-2];              // save FP
     thread->sp = (long)&mem[STACK_SIZE-2];              // save SP
     thread->state = RUNNING;
+    thread->detached = ATTACHED;
+    thread->waiting = Current_Thread;
+
+    list_push(Thread_List, thread);
 
     my_q_enqueue(Ready_Queue, thread);
     // a call to yield will now run this thread
     mythread_yield();
-    return 0;   // should return thread_id
+    return (unsigned long)thread;   // should return thread_id
 }
 
 /**********************************************************************
@@ -156,19 +167,23 @@ void mythread_yield()
     unsigned long reg;
 
     debug_print("Thread is yielding\n");
-    if(Current_Thread->state != EXITING)
+
+    // save FP, SP and queue current thread in ready queue
+    __asm__ volatile("movq %%rbp, %0" : "=m" (reg) : :);
+    Current_Thread->fp = reg;
+    __asm__ volatile("movq %%rsp, %0" : "=m" (reg) : :);
+    Current_Thread->sp = reg;
+
+    if(Current_Thread->state == RUNNING)
+        my_q_enqueue(Ready_Queue, Current_Thread);
+        
+    else
     {
-        // save FP, SP and queue current thread in ready queue
-        __asm__ volatile("movq %%rbp, %0" : "=m" (reg) : :);
-        Current_Thread->fp = reg;
-        __asm__ volatile("movq %%rsp, %0" : "=m" (reg) : :);
-        Current_Thread->sp = reg;
-        if(Current_Thread->state != WAITING)
-            my_q_enqueue(Ready_Queue, Current_Thread);
+        Previous_Thread = Current_Thread;
+        list_remove(Thread_List, Previous_Thread);
     }
-    else Previous_Thread = Current_Thread;
+
     // Get the next thread
-    
     Current_Thread = my_q_dequeue(Ready_Queue);
 
     debug_print("Thread is running\n");
@@ -207,10 +222,13 @@ void mythread_exit(void *result)
 {
     debug_print("Thread is exiting\n");
     // clean up thread data structures
-    if(Current_Thread->state == DETACH)
-        Current_Thread->state = EXITING;
+    if(Current_Thread->detached == DETACHED)
+        Current_Thread->state = DESTROY;
     else
-        Current_Thread->state = EXITING;
+    {
+        Current_Thread->state = STOPPED;
+        my_q_enqueue(Ready_Queue, (thread_t *)(Current_Thread->waiting));
+    }
     mythread_yield();
 }
 /**********************************************************************
@@ -230,13 +248,10 @@ void mythread_exit(void *result)
  ************************************************************************/
 void mythread_join(unsigned long thread_id, void **result)
 {
-    if( ((thread_t *)thread_id)->state == STOPPED )
-        return;
-    else
-    {
-        Current_Thread->state = WAITING;
-        mythread_yield();
-    }
+    ((thread_t *)thread_id)->state = RUNNING;
+    Current_Thread->state = WAITING;
+
+    mythread_yield();
 }
 /**********************************************************************
  * Purpose: This function will mark a thread a detached meaning that the
@@ -253,8 +268,8 @@ void mythread_join(unsigned long thread_id, void **result)
  ************************************************************************/
 void mythread_detach(unsigned long thread_id)
 {
-    if(thread_id != NULL)
-        ((thread_t *)thread_id)->state = DETACH;
+    if(thread_id != 0)
+        ((thread_t *)thread_id)->detached = DETACHED;
 }
 /**********************************************************************
  * Purpose: This function shut down the user thread system and clean-up any
@@ -270,8 +285,10 @@ void mythread_detach(unsigned long thread_id)
  ************************************************************************/
 void mythread_cleanup()
 {
-   my_q_cleanup(Ready_Queue);
-   free(Current_Thread->stack);
-   free(Current_Thread); 
+    Previous_Thread = list_pop(Thread_List);
+    free(Thread_List);
+    my_q_cleanup(Ready_Queue);
+    free(Current_Thread->stack);
+    free(Current_Thread); 
 }
 

@@ -35,21 +35,21 @@ list_t *list_init();
 //
 // list: pointer to the list
 // value: value to be added to the list
-void list_sorted_insert(list_t *list, int value);
+void list_sorted_insert(list_t *list, thread_t * value);
 
 //*******************************************************
 // Add a new item to the beginning of a list
 //
 // list: pointer to the list
 // value: value to be added to the list
-void list_push(list_t *list, int value);
+void list_push(list_t *list, thread_t * value);
 
 //*******************************************************
 // Add a new item to the end of a list
 //
 // list: pointer to the list
 // value: value to be added to the list
-void list_push_end(list_t *list, int value);
+void list_push_end(list_t *list, thread_t * value);
 
 //*******************************************************
 // remove the first element in a list
@@ -58,6 +58,6 @@ void list_push_end(list_t *list, int value);
 // value: value to be added to the list
 //
 // Returns: the first item in the list, or zero if the list is empty
-int list_pop(list_t *list);
+thread_t * list_pop(list_t *list);
 
-thread_t * list_find(list_t * list, unsigned long value);
+int list_remove(list_t * list, thread_t * value);

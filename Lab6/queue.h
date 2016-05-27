@@ -15,6 +15,8 @@
 // Definition of Thread Control Block
 typedef struct thread_s
 {
+    void * waiting;
+    int detached;
     int state;
     unsigned long sp;                   // Stack pointer for thread
     unsigned long fp;                   // Frame pointer for thread

@@ -44,7 +44,7 @@ list_t *list_init()
 *   A new item is added to the list in sorted order
 *
 ************************************************************************/
-void list_sorted_insert(list_t *list, int value)
+void list_sorted_insert(list_t *list, thread_t * value)
 {
     pthread_mutex_lock(&(list->lock));
     list_item_t *item;
@@ -93,7 +93,7 @@ void list_sorted_insert(list_t *list, int value)
 *   A new item is added to the front of the list
 *
 ************************************************************************/
-void list_push(list_t *list, int value)
+void list_push(list_t *list, thread_t * value)
 {
     pthread_mutex_lock(&(list->lock));
 
@@ -102,7 +102,7 @@ void list_push(list_t *list, int value)
     assert(list != NULL);
 
     list_item_t *new_item = (list_item_t *)malloc(sizeof(list_item_t));
-    assert(item != NULL);
+    //assert(item != NULL);
 
     new_item->value = value;
     new_item->next = NULL;
@@ -126,7 +126,7 @@ void list_push(list_t *list, int value)
 *   A new item is added to the end of the list
 *
 ************************************************************************/
-void list_push_end(list_t *list, int value)
+void list_push_end(list_t *list, thread_t * value)
 {
     pthread_mutex_lock(&(list->lock));
     assert(list != NULL);
@@ -162,10 +162,10 @@ void list_push_end(list_t *list, int value)
 *   If the list is empty, zero is returned
 *
 ************************************************************************/
-int list_pop(list_t *list)
+thread_t * list_pop(list_t *list)
 {
     pthread_mutex_lock(&(list->lock));
-    int value;
+    thread_t * value;
     list_item_t *item;
 
     if (list->first == NULL)
@@ -185,4 +185,42 @@ int list_pop(list_t *list)
 
     pthread_mutex_unlock(&(list->lock));
     return value;
+}
+
+int list_remove(list_t * list, thread_t * value)
+{
+    pthread_mutex_lock(&(list->lock));
+
+    int found = 0;
+    list_item_t * first;
+    list_item_t * follow;
+
+    if(list->first == NULL)
+    {
+        pthread_mutex_unlock(&(list->lock));
+        return 0;
+    }
+
+    first = list->first;
+
+    while(first != NULL && !found)
+    {
+        follow = first;
+        first = first->next;
+        if(first == NULL)
+            break;
+        if(first->value == value)
+            found = 1;
+    }
+
+    if(found)
+    {
+        follow->next = first->next;
+        --list->count;
+        free(first);
+    }
+
+    pthread_mutex_unlock(&(list->lock));
+
+    return found;
 }
