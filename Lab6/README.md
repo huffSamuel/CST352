@@ -27,4 +27,12 @@ In this lab we constructed a cooperative 1:N multithreaded system. Demo code was
 
 ## Grade and Notes
 
-TBD.
+78/100
+
+* Your build had warnings.
+* You don't need to call yield() in create(). Let the thread creating the other keep the CPU. Also don't need to call yield() after a join().
+* valgrind reports memory leaks for some combinations and orderings of join, exit, detach
+* File scope variables should be static
+* You didn't validate the return value for malloc() for stacks.
+* In exit(), you queue the waiting thread without making sure there IS a waiting thread.
+* The write-up had the following rule for join: "When a thread calls mythread_join() after the other thread finishes, the calling thread can return without yielding the CPU.". Your implementation did not follow this rule.
