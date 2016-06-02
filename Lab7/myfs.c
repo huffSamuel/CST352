@@ -262,25 +262,22 @@ int FS_Free_Inode(inode_t *inode)
 int FS_Alloc_Block()
 {
     int num_free = Super_Block.num_free_blocks;
+    int block;
     if(num_free > 0)
     {
         Super_Block.num_free_blocks--;
         // Write SB to disk somehow
-        return Super_Block.free_list[MAX_BLOCKS - num_free];
+        block = Super_Block.free_list[MAX_BLOCKS - num_free];
     }
-    else
+    else    
     {
-
-    }
-    // If the free list is not empty
-        // Get a block number
-    // Else
-        // If free_list[0] is block 0 FS is full
         // Read block at location 0
+            // If free_list[0] is block 0 FS is full
         // Copy free list from this block into SB
         // Return the block read as the free block
+    }
 
-    return -1;
+    return block;
 }
 //*************************************
 int FS_Free_Block(u_int32_t block)
