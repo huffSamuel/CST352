@@ -2,7 +2,10 @@
 #include <sys/types.h>
 
 #define FS_BLOCK_SIZE 1024
-#define MAX_BLOCKS 50
+#define FS_BLOCK_SUPERBLOCK 1
+#define BUSY 0
+#define FREE 1
+
 
 typedef struct
 {

@@ -43,7 +43,7 @@ int FS_Close()
     int status;
 
     status = FS_Write(&Super_Block, 1);
-    if (status != 0) return status;
+    if (status != FS_BLOCK_SIZE) return status;
 
     return close(fs_fd);
 }
@@ -63,7 +63,7 @@ int FS_Open(const char *filename)
 
     // Read the Super Block so we have it in memory
     status = FS_Read(&Super_Block, 1);
-    if (status != 0) return status;
+    if (status != FS_BLOCK_SIZE) return status;
 
     return 0;
 }
@@ -134,7 +134,7 @@ int FS_Read(void *buff, u_int32_t block)
     if (status != block*FS_BLOCK_SIZE) return -1;
 
     status = read(fs_fd, buff, FS_BLOCK_SIZE);
-    if (status == FS_BLOCK_SIZE) return 0;
+    if (status == FS_BLOCK_SIZE) return status;
 
     return -1;
 }
@@ -148,7 +148,7 @@ int FS_Write(void *buff, u_int32_t block)
     if (status != block*FS_BLOCK_SIZE) return -1;
 
     status = write(fs_fd, buff, FS_BLOCK_SIZE);
-    if (status == FS_BLOCK_SIZE) return 0;
+    if (status == FS_BLOCK_SIZE) return status;
 
     return -1;
 }
@@ -171,7 +171,7 @@ int FS_Read_Inode(inode_t *inode, u_int32_t index)
     if (inode_block != FS_Inode_Cache_Block)
     {
         status = FS_Read(&FS_Inode_Cache, inode_block);
-        if (status != 0)
+        if (status != FS_BLOCK_SIZE)
         {
             FS_Inode_Cache_Block = -1;
             return status;
@@ -205,7 +205,7 @@ int FS_Write_Inode(inode_t *inode)
     if (inode_block != FS_Inode_Cache_Block)
     {
         status = FS_Read(&FS_Inode_Cache, inode_block);
-        if (status != 0)
+        if (status != FS_BLOCK_SIZE)
         {
             FS_Inode_Cache_Block = -1;
             return status;
@@ -218,7 +218,7 @@ int FS_Write_Inode(inode_t *inode)
 
     // write back the cache
     status = FS_Write(&FS_Inode_Cache, inode_block);
-    if (status != 0) return status;
+    if (status != FS_BLOCK_SIZE) return status;
 
     return 0;
 }
@@ -233,51 +233,87 @@ int FS_Write_File_Block(inode_t *inode, void *buff, u_int32_t block)
     return -1;
 }
 //*************************************
+// FS_INODES_PER_BLOCK in each of FS_NUM_INODE_BLOCKS
+// Super_Block.free_inode_list is cache of inodes
+// 
 int FS_Alloc_Inode(inode_t *inode)
 {
-    return -1;
-}
-//*************************************
-int FS_Free_Inode(inode_t *inode)
-{
-    int status;
+    inode_t * inode_block = null;
+    int index;
+    int status = 0;
+    int SB_inodes = Super_Block.num_free_inodes;
 
-    if (Super_Block.num_free_inodes < FS_FREE_INODE_SIZE)
+    // if (cache empty)
+    if(SB_inodes == 0)
     {
-        Super_Block.free_inode_list[ Super_Block.num_free_inodes] = 
-            inode->inode_number;
-        Super_Block.num_free_inodes++;
-
-        status = FS_Write(&Super_Block, 1);
-        if (status != 0) return status;
+        // Read a block of inodes
+        // Scan for free inode
+        // If free inode found
+            // Refill cache
+            // break
     }
 
-    inode->free = 1;
-
+    // take inode from cache
+    u_int32_t inode_loc = Super_Block.free_inode_list[SB_inodes];
+    FS_Read_Inode(inode, inode_loc);
+    Super_Block.num_free_inodes--;
+    // mark inode busy
+    inode->free = BUSY;
+    // flush inode to disk
     status = FS_Write_Inode(inode);
 
     return status;
 }
 //*************************************
+// if(space)add inode number to SB_inode_cache
+// mark inode as free
+// write inode 
+int FS_Free_Inode(inode_t *inode)
+{
+    int status;
+    int SB_inodes = Super_Block.num_free_inodes;
+
+    if (SB_inodes < FS_FREE_INODE_SIZE)
+    {
+        Super_Block.free_inode_list[SB_inodes] = inode->inode_number;
+        Super_Block.num_free_inodes++;
+
+        status = FS_Write(&Super_Block, FS_BLOCK_SUPERBLOCK);
+        if (status != FS_BLOCK_SIZE) return status;
+    }
+
+    inode->free = FREE;
+
+    status = FS_Write_Inode(inode);
+
+    return status;
+}
+
+//*************************************
 int FS_Alloc_Block()
 {
     int num_free = Super_Block.num_free_blocks;
-    int block;
-    if(num_free > 0)
+    int block = 0;
+    int status = 0;
+
+    if(num_free > 1)
     {
+        block = Super_Block.free_list[num_free - 1];
         Super_Block.num_free_blocks--;
-        // Write SB to disk somehow
-        block = Super_Block.free_list[MAX_BLOCKS - num_free];
+        status = FS_Write(&Super_Block, FS_BLOCK_SUPERBLOCK);
     }
     else    
     {
-        // Read block at location 0
-            // If free_list[0] is block 0 FS is full
-        // Copy free list from this block into SB
-        // Return the block read as the free block
+        block = Super_Block.free_list[0];
+        if(block != 0)
+        {
+            FS_Read(&Super_Block.free_list, block);
+            status = FS_Write(&Super_Block, FS_BLOCK_SUPERBLOCK); 
+        }
+        else status = -1;
     }
 
-    return block;
+    return ((status == FS_BLOCK_SIZE) ? block : 1);
 }
 //*************************************
 int FS_Free_Block(u_int32_t block)
@@ -285,17 +321,20 @@ int FS_Free_Block(u_int32_t block)
     int free_blocks = Super_Block.num_free_blocks;
     int status = 0;
 
-    if(free_blocks < MAX_BLOCKS)
+    if(free_blocks < FS_FREE_LIST_SIZE)
     {
-        Super_Block.free_list[MAX_BLOCKS - free_blocks] = block;
+        Super_Block.free_list[free_blocks] = block;
         Super_Block.num_free_blocks++;
-        // Write the SB to disk somehow
     }
     else 
     {
-        status = FS_Write(&Super_Block, block);
-        Super_Block.num_free_blocks = MAX_BLOCKS;
+        FS_Write(&Super_Block, block);
+        memset(&Super_Block, 0, sizeof(super_block_t));
+        Super_Block.free_list[0] = block;
+        Super_Block.num_free_blocks = 1;
     }
+    
+    status = FS_Write(&Super_Block, FS_BLOCK_SUPERBLOCK);
 
-    return status;
+    return (status == FS_BLOCK_SIZE ? 0 : 1);
 }
