@@ -238,25 +238,32 @@ int FS_Write_File_Block(inode_t *inode, void *buff, u_int32_t block)
 // 
 int FS_Alloc_Inode(inode_t *inode)
 {
-    inode_t * inode_block = null;
-    int index;
+    inode_t inode_block[FS_INODES_PER_BLOCK + 1];
+    int i = 0;
+    int index = Super_Block.free_inode_list[0];
+    int block_addr = index / FS_INODES_PER_BLOCK + 2;
     int status = 0;
-    int SB_inodes = Super_Block.num_free_inodes;
 
     // if (cache empty)
-    if(SB_inodes == 0)
+    while(Super_Block.num_free_inodes == 0)
     {
-        // Read a block of inodes
+        status = FS_Read(&inode_block, block_addr);
         // Scan for free inode
-        // If free inode found
-            // Refill cache
-            // break
+        for(i = 0; i < FS_INODES_PER_BLOCK; ++i)
+        {
+            if(inode_block[i].free == FREE && Super_Block.num_free_inodes < FS_FREE_INODE_SIZE)
+            {
+                Super_Block.free_inode_list[Super_Block.num_free_inodes] = inode_block[i].inode_number;
+                Super_Block.num_free_inodes++;
+            }
+        }
+
+        block_addr++; 
     }
 
     // take inode from cache
-    u_int32_t inode_loc = Super_Block.free_inode_list[SB_inodes];
+    u_int32_t inode_loc = Super_Block.free_inode_list[--Super_Block.num_free_inodes];
     FS_Read_Inode(inode, inode_loc);
-    Super_Block.num_free_inodes--;
     // mark inode busy
     inode->free = BUSY;
     // flush inode to disk
