@@ -225,13 +225,36 @@ int FS_Write_Inode(inode_t *inode)
 //*************************************
 int FS_Read_File_Block(inode_t *inode, void *buff, u_int32_t block)
 {
+    int * mem_status;
     int status = 0;
+    indirect_block_t iblock;
 
-    if(block > 266) status = -1;
-    else if(block * FS_BLOCK_SIZE > inode->size) return 0;
+    if(block * FS_BLOCK_SIZE > inode->size) return 0;   // Don't read larger than file
     else if(block < 10)
     {
+        if(inode->disk_map[block] == 0)
+        {
+            mem_status = memset(buff, 0, 1024);
+            if(mem_status == NULL) return -1;
+
+            return FS_BLOCK_SIZE;
+        }
         status = FS_Read(buff, inode->disk_map[block]);
+    }
+    else if(block < 266)   // Prevent x2 x3 indirection
+    {
+        block -= 10;
+        status = FS_Read(&iblock, inode->disk_map[INDIRECT_BLOCK_MAP]);
+        if(status != FS_BLOCK_SIZE) return -1;
+
+        if(iblock.block[block] == 0)
+        {
+            mem_status = memset(buff, 0, 1024);
+            if(mem_status == NULL) return -1;
+
+            return FS_BLOCK_SIZE;
+        }
+        status = FS_Read(buff, iblock.block[block]);
     }
     else status = -1;
 
@@ -241,22 +264,60 @@ int FS_Read_File_Block(inode_t *inode, void *buff, u_int32_t block)
 int FS_Write_File_Block(inode_t *inode, void *buff, u_int32_t block)
 {
     int status = 0;
-    int file_block = 0;
+    int temp_block = 0;
+    indirect_block_t iblock;
 
-    if(block > 266) status = -1;
-    else if(block < 10)
+    if(block < 10)
     {
-        file_block = FS_Alloc_Block();
+        if(inode->disk_map[block] == 0)
+        {
+            temp_block = FS_Alloc_Block();
+            if(temp_block == -1) return -1;
 
-        if(file_block == -1) return -1;
+            inode->disk_map[block] = temp_block;
+            inode->size = block * FS_BLOCK_SIZE;
 
-        inode->disk_map[block] = file_block;
-        inode->size += FS_BLOCK_SIZE;
-        status = FS_Write_Inode(inode);
-
-        if(status == -1) return -1;
+            status = FS_Write_Inode(inode);
+            if(status == -1) return status;
+        }
 
         status = FS_Write(buff, inode->disk_map[block]);
+    }
+    else if(block < 266)    // Prevent x2 x3 indirection
+    {
+        block -= 10; // Calculate into indirect
+
+        // Allocate indirect block in map if necessary
+        if(inode->disk_map[INDIRECT_BLOCK_MAP] == 0)
+        {
+            temp_block = FS_Alloc_Block();
+            if(temp_block == -1) return -1;
+
+            inode->disk_map[INDIRECT_BLOCK_MAP] = temp_block;
+
+            status = FS_Write_Inode(inode);
+            if(status == -1) return status;
+        }
+        status = FS_Read(&iblock, inode->disk_map[INDIRECT_BLOCK_MAP]);
+        if(status != FS_BLOCK_SIZE) return -1;
+
+        // Create the block if necessary
+        if(iblock.block[block] == 0)
+        {
+            temp_block = FS_Alloc_Block();
+            if(temp_block == -1) return -1;
+
+            iblock.block[block] = temp_block;
+            inode->size = (block + 10) * FS_BLOCK_SIZE;
+
+            status = FS_Write(&iblock, inode->disk_map[INDIRECT_BLOCK_MAP]);
+            if(status != FS_BLOCK_SIZE) return -1;
+
+            status = FS_Write_Inode(inode);
+            if(status == -1) return status;
+        }
+
+        status = FS_Write(buff, iblock.block[block]);
     }
     else status = -1;
 
@@ -281,6 +342,7 @@ int FS_Alloc_Inode(inode_t *inode)
     while(Super_Block.num_free_inodes == 0)
     {
         status = FS_Read(&inode_block, block_addr);
+        if(status != FS_BLOCK_SIZE) return -1;
         // Scan for free inode
         for(i = 0; i < FS_INODES_PER_BLOCK; ++i)
         {
@@ -300,19 +362,15 @@ int FS_Alloc_Inode(inode_t *inode)
             return -1;
     }
 
-    // take inode from cache
-
     inode_loc = Super_Block.free_inode_list[--Super_Block.num_free_inodes];
-    FS_Read_Inode(inode, inode_loc);
-    // mark inode busy
+
+    status = FS_Read_Inode(inode, inode_loc);
+    if(status != 0) return -1;
+
     inode->free = BUSY;
-    // flush inode to disk
+
     status = FS_Write(&Super_Block, FS_BLOCK_SUPERBLOCK);
-    if(status != FS_BLOCK_SIZE)
-    {
-        FS_Write_Inode(inode);  // Try to update the inode
-        return -1;              // signal that an error occurred
-    }
+    if(status != FS_BLOCK_SIZE) return -1;
 
     status = FS_Write_Inode(inode);
 
@@ -361,17 +419,20 @@ int FS_Alloc_Block()
         block = Super_Block.free_list[0];
         if(block != 0)
         {
-            FS_Read(&Super_Block.free_list, block);
+            status = FS_Read(&Super_Block.free_list, block);
+            if(status != FS_BLOCK_SIZE) return -1;
+
             status = FS_Write(&Super_Block, FS_BLOCK_SUPERBLOCK); 
         }
         else status = -1;
     }
 
-    return ((status == FS_BLOCK_SIZE) ? block : 1);
+    return ((status == FS_BLOCK_SIZE) ? block : -1);
 }
 //*************************************
 int FS_Free_Block(u_int32_t block)
 {
+    int * mem_status;
     int free_blocks = Super_Block.num_free_blocks;
     int status = 0;
 
@@ -382,13 +443,17 @@ int FS_Free_Block(u_int32_t block)
     }
     else 
     {
-        FS_Write(&Super_Block, block);
-        memset(&Super_Block, 0, sizeof(super_block_t));
+        status = FS_Write(&Super_Block, block);
+        if(status != FS_BLOCK_SIZE) return -1;
+
+        mem_status = memset(&Super_Block, 0, sizeof(super_block_t));
+        if(mem_status == NULL) return -1;
+
         Super_Block.free_list[0] = block;
         Super_Block.num_free_blocks = 1;
     }
     
     status = FS_Write(&Super_Block, FS_BLOCK_SUPERBLOCK);
 
-    return (status == FS_BLOCK_SIZE ? 0 : 1);
+    return (status == FS_BLOCK_SIZE ? 0 : -1);
 }
