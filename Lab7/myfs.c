@@ -238,11 +238,14 @@ int FS_Write_File_Block(inode_t *inode, void *buff, u_int32_t block)
 // 
 int FS_Alloc_Inode(inode_t *inode)
 {
-    inode_t inode_block[FS_INODES_PER_BLOCK + 1];
+    
     int i = 0;
     int index = Super_Block.free_inode_list[0];
-    int block_addr = index / FS_INODES_PER_BLOCK + 2;
+    int block_addr = index / FS_INODES_PER_BLOCK + ILIST_BLOCK;
+    int start_block_addr = block_addr;
     int status = 0;
+    inode_t inode_block[FS_INODES_PER_BLOCK + 1];
+    u_int32_t inode_loc;
 
     // if (cache empty)
     while(Super_Block.num_free_inodes == 0)
@@ -251,18 +254,25 @@ int FS_Alloc_Inode(inode_t *inode)
         // Scan for free inode
         for(i = 0; i < FS_INODES_PER_BLOCK; ++i)
         {
-            if(inode_block[i].free == FREE && Super_Block.num_free_inodes < FS_FREE_INODE_SIZE)
+            if(inode_block[i].free == FREE 
+                && Super_Block.num_free_inodes < FS_FREE_INODE_SIZE)
             {
-                Super_Block.free_inode_list[Super_Block.num_free_inodes] = inode_block[i].inode_number;
+                Super_Block.free_inode_list[Super_Block.num_free_inodes] = 
+                    inode_block[i].inode_number;
                 Super_Block.num_free_inodes++;
             }
         }
 
-        block_addr++; 
+        block_addr = (block_addr + 1) % FS_NUM_INODE_BLOCKS + ILIST_BLOCK;
+        if(block_addr == 0) block_addr = ILIST_BLOCK;
+
+        if(block_addr == start_block_addr)
+            return -1;
     }
 
     // take inode from cache
-    u_int32_t inode_loc = Super_Block.free_inode_list[--Super_Block.num_free_inodes];
+
+    inode_loc = Super_Block.free_inode_list[--Super_Block.num_free_inodes];
     FS_Read_Inode(inode, inode_loc);
     // mark inode busy
     inode->free = BUSY;

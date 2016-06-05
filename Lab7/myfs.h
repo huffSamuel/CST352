@@ -3,6 +3,7 @@
 
 #define FS_BLOCK_SIZE 1024
 #define FS_BLOCK_SUPERBLOCK 1
+#define ILIST_BLOCK 2
 #define BUSY 0
 #define FREE 1
 
