@@ -225,12 +225,42 @@ int FS_Write_Inode(inode_t *inode)
 //*************************************
 int FS_Read_File_Block(inode_t *inode, void *buff, u_int32_t block)
 {
-    return -1;
+    int status = 0;
+
+    if(block > 266) status = -1;
+    else if(block * FS_BLOCK_SIZE > inode->size) return 0;
+    else if(block < 10)
+    {
+        status = FS_Read(buff, inode->disk_map[block]);
+    }
+    else status = -1;
+
+    return status;
 }
 //*************************************
 int FS_Write_File_Block(inode_t *inode, void *buff, u_int32_t block)
 {
-    return -1;
+    int status = 0;
+    int file_block = 0;
+
+    if(block > 266) status = -1;
+    else if(block < 10)
+    {
+        file_block = FS_Alloc_Block();
+
+        if(file_block == -1) return -1;
+
+        inode->disk_map[block] = file_block;
+        inode->size += FS_BLOCK_SIZE;
+        status = FS_Write_Inode(inode);
+
+        if(status == -1) return -1;
+
+        status = FS_Write(buff, inode->disk_map[block]);
+    }
+    else status = -1;
+
+    return status;
 }
 //*************************************
 // FS_INODES_PER_BLOCK in each of FS_NUM_INODE_BLOCKS
@@ -277,6 +307,13 @@ int FS_Alloc_Inode(inode_t *inode)
     // mark inode busy
     inode->free = BUSY;
     // flush inode to disk
+    status = FS_Write(&Super_Block, FS_BLOCK_SUPERBLOCK);
+    if(status != FS_BLOCK_SIZE)
+    {
+        FS_Write_Inode(inode);  // Try to update the inode
+        return -1;              // signal that an error occurred
+    }
+
     status = FS_Write_Inode(inode);
 
     return status;
